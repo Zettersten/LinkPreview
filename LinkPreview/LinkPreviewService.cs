@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.WebUtilities;
@@ -12,9 +13,9 @@ namespace LinkPreview;
 /// </summary>
 public sealed class LinkPreviewService : ILinkPreviewService
 {
-    private readonly HttpClient _httpClient;
-    private readonly IOptions<LinkPreviewOptions> _options;
-    private readonly IMemoryCache _cache;
+    private readonly HttpClient httpClient;
+    private readonly IOptions<LinkPreviewOptions> options;
+    private readonly IMemoryCache cache;
 
     public LinkPreviewService(
         HttpClient httpClient,
@@ -22,24 +23,29 @@ public sealed class LinkPreviewService : ILinkPreviewService
         IMemoryCache cache
     )
     {
-        _httpClient = httpClient ?? throw new LinkPreviewException("HTTP client is null.");
-        _options = options ?? throw new LinkPreviewException("LinkPreview options are null.");
-        _cache = cache ?? throw new LinkPreviewException("Memory cache is null.");
+        this.httpClient = httpClient ?? throw new LinkPreviewException("HTTP client is null.");
+        this.options = options ?? throw new LinkPreviewException("LinkPreview options are null.");
+        this.cache = cache ?? throw new LinkPreviewException("Memory cache is null.");
 
         try
         {
-            _options.Value.Validate();
+            this.options.Value.Validate();
         }
         catch (ValidationException ex)
         {
             throw new LinkPreviewException($"Invalid LinkPreview options: {ex.Message}");
         }
 
-        _httpClient.BaseAddress = new Uri(_options.Value.ApiBaseUrl);
-        _httpClient.DefaultRequestHeaders.Add("X-Linkpreview-Api-Key", _options.Value.ApiKey);
+        this.httpClient.BaseAddress = new Uri(this.options.Value.ApiBaseUrl);
+        this.httpClient.DefaultRequestHeaders.Add(
+            "X-Linkpreview-Api-Key",
+            this.options.Value.ApiKey
+        );
     }
 
     /// <inheritdoc />
+    [RequiresUnreferencedCode("")]
+    [RequiresDynamicCode("")]
     public async Task<LinkPreviewResponse> GetLinkPreviewAsync(
         string url,
         LinkPreviewOptionalField? optionalFields = null,
@@ -48,22 +54,28 @@ public sealed class LinkPreviewService : ILinkPreviewService
     {
         var cacheKey = GetCacheKey(url, optionalFields);
 
-        if (_cache.TryGetValue(cacheKey, out LinkPreviewResponse? cachedResponse))
+        if (this.cache.TryGetValue(cacheKey, out LinkPreviewResponse? cachedResponse))
         {
             return cachedResponse!;
         }
 
-        var response = await FetchLinkPreviewAsync(url, optionalFields, cancellationToken);
+        var response = await this.FetchLinkPreviewAsync(url, optionalFields, cancellationToken);
 
         var cacheEntryOptions = new MemoryCacheEntryOptions().SetAbsoluteExpiration(
-            TimeSpan.FromMinutes(_options.Value.CacheTTLMinutes)
+            TimeSpan.FromMinutes(this.options.Value.CacheTTLMinutes)
         );
 
-        _cache.Set(cacheKey, response, cacheEntryOptions);
+        this.cache.Set(cacheKey, response, cacheEntryOptions);
 
         return response;
     }
 
+    [RequiresUnreferencedCode(
+        "Calls System.Text.Json.JsonSerializer.Deserialize<TValue>(String, JsonSerializerOptions)"
+    )]
+    [RequiresDynamicCode(
+        "Calls System.Text.Json.JsonSerializer.Deserialize<TValue>(String, JsonSerializerOptions)"
+    )]
     private async Task<LinkPreviewResponse> FetchLinkPreviewAsync(
         string url,
         LinkPreviewOptionalField? optionalFields,
@@ -92,7 +104,7 @@ public sealed class LinkPreviewService : ILinkPreviewService
                 queryParams.Add("fields", fields);
             }
 
-            var response = await _httpClient.GetAsync(
+            var response = await this.httpClient.GetAsync(
                 QueryHelpers.AddQueryString("", queryParams),
                 cancellationToken
             );

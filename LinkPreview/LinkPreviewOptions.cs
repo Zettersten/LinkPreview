@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace LinkPreview;
 
@@ -7,7 +7,7 @@ namespace LinkPreview;
 /// </summary>
 public sealed class LinkPreviewOptions
 {
-    private const string DefaultApiBaseUrl = "https://api.linkpreview.net";
+    private const string defaultApiBaseUrl = "https://api.linkpreview.net";
 
     /// <summary>
     /// Gets or sets the base URL for the LinkPreview API.
@@ -33,8 +33,8 @@ public sealed class LinkPreviewOptions
     /// </summary>
     public LinkPreviewOptions()
     {
-        ApiBaseUrl = DefaultApiBaseUrl;
-        ApiKey = string.Empty;
+        this.ApiBaseUrl = defaultApiBaseUrl;
+        this.ApiKey = string.Empty;
     }
 
     /// <summary>
@@ -43,12 +43,12 @@ public sealed class LinkPreviewOptions
     /// <exception cref="ValidationException">Thrown when the options are invalid.</exception>
     public void Validate()
     {
-        if (string.IsNullOrWhiteSpace(ApiKey))
+        if (string.IsNullOrWhiteSpace(this.ApiKey))
         {
             throw new ValidationException("API Key must not be empty or whitespace.");
         }
 
-        if (!Uri.TryCreate(ApiBaseUrl, UriKind.Absolute, out _))
+        if (!Uri.TryCreate(this.ApiBaseUrl, UriKind.Absolute, out _))
         {
             throw new ValidationException("API Base URL must be a valid absolute URL.");
         }
@@ -60,6 +60,6 @@ public sealed class LinkPreviewOptions
     /// <returns>A string that represents the current object.</returns>
     public override string ToString()
     {
-        return $"API Base URL: {ApiBaseUrl}, API Key: {ApiKey[..3]}...{ApiKey[^3..]}";
+        return $"API Base URL: {this.ApiBaseUrl}, API Key: {this.ApiKey[..3]}...{this.ApiKey[^3..]}";
     }
 }

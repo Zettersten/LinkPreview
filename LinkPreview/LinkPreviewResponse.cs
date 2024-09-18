@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 
 namespace LinkPreview;
@@ -99,15 +99,15 @@ public sealed class LinkPreviewResponse
     /// <returns>True if the response includes any extended properties; otherwise, false.</returns>
     public bool IsExtendedResponse()
     {
-        return ImageSize.HasValue
-            || !string.IsNullOrEmpty(ImageType)
-            || ImageWidth.HasValue
-            || ImageHeight.HasValue
-            || !string.IsNullOrEmpty(Icon)
-            || !string.IsNullOrEmpty(IconType)
-            || IconWidth.HasValue
-            || IconHeight.HasValue
-            || !string.IsNullOrEmpty(Locale);
+        return this.ImageSize.HasValue
+            || !string.IsNullOrEmpty(this.ImageType)
+            || this.ImageWidth.HasValue
+            || this.ImageHeight.HasValue
+            || !string.IsNullOrEmpty(this.Icon)
+            || !string.IsNullOrEmpty(this.IconType)
+            || this.IconWidth.HasValue
+            || this.IconHeight.HasValue
+            || !string.IsNullOrEmpty(this.Locale);
     }
 
     /// <summary>
@@ -116,6 +116,6 @@ public sealed class LinkPreviewResponse
     /// <returns>A string that represents the current object.</returns>
     public override string ToString()
     {
-        return $"Title: {Title}, URL: {Url}, Is Extended Response: {IsExtendedResponse()}";
+        return $"Title: {this.Title}, URL: {this.Url}, Is Extended Response: {this.IsExtendedResponse()}";
     }
 }

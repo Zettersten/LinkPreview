@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 
 namespace LinkPreview;
 
@@ -35,10 +35,10 @@ public sealed class LinkPreviewException : Exception
     public LinkPreviewException(HttpStatusCode statusCode, LinkPreviewErrorResponse errorResponse)
         : base(GetExceptionMessage(statusCode, errorResponse))
     {
-        StatusCode = statusCode;
-        ErrorCode = errorResponse.Error;
-        ErrorDescription = errorResponse.Description;
-        Url = string.IsNullOrEmpty(errorResponse.Url) ? null : errorResponse.Url;
+        this.StatusCode = statusCode;
+        this.ErrorCode = errorResponse.Error;
+        this.ErrorDescription = errorResponse.Description;
+        this.Url = string.IsNullOrEmpty(errorResponse.Url) ? null : errorResponse.Url;
     }
 
     /// <summary>
@@ -47,10 +47,10 @@ public sealed class LinkPreviewException : Exception
     /// <param name="errorDescription">The error response from the LinkPreview service.</param>
     internal LinkPreviewException(string errorDescription)
     {
-        StatusCode = HttpStatusCode.InternalServerError;
-        ErrorCode = 0;
-        ErrorDescription = errorDescription;
-        Url = null;
+        this.StatusCode = HttpStatusCode.InternalServerError;
+        this.ErrorCode = 0;
+        this.ErrorDescription = errorDescription;
+        this.Url = null;
     }
 
     /// <summary>
@@ -60,10 +60,10 @@ public sealed class LinkPreviewException : Exception
     /// <param name="errorDescription">The error response from the LinkPreview service.</param>
     internal LinkPreviewException(HttpStatusCode statusCode, string errorDescription)
     {
-        StatusCode = statusCode;
-        ErrorCode = 0;
-        ErrorDescription = errorDescription;
-        Url = null;
+        this.StatusCode = statusCode;
+        this.ErrorCode = 0;
+        this.ErrorDescription = errorDescription;
+        this.Url = null;
     }
 
     /// <summary>
@@ -90,9 +90,9 @@ public sealed class LinkPreviewException : Exception
     public override string ToString()
     {
         return $"{base.ToString()}, "
-            + $"StatusCode: {StatusCode}, "
-            + $"ErrorCode: {ErrorCode}, "
-            + $"ErrorDescription: {ErrorDescription}"
-            + (Url != null ? $", URL: {Url}" : "");
+            + $"StatusCode: {this.StatusCode}, "
+            + $"ErrorCode: {this.ErrorCode}, "
+            + $"ErrorDescription: {this.ErrorDescription}"
+            + (this.Url != null ? $", URL: {this.Url}" : "");
     }
 }

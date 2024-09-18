@@ -1,4 +1,6 @@
-﻿namespace LinkPreview;
+using System.Diagnostics.CodeAnalysis;
+
+namespace LinkPreview;
 
 /// <summary>
 /// Provides services for interacting with the LinkPreview API.
@@ -14,6 +16,8 @@ public interface ILinkPreviewService
     /// <returns>
     /// Link preview information for the specified URL.
     /// </returns>
+    [RequiresUnreferencedCode("")]
+    [RequiresDynamicCode("")]
     Task<LinkPreviewResponse> GetLinkPreviewAsync(
         string url,
         LinkPreviewOptionalField? optionalFields = null,
