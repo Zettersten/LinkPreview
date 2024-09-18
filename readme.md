@@ -1,57 +1,55 @@
-![BadBotBlocker Icon](https://raw.githubusercontent.com/Zettersten/BadBotBlocker/main/icon.png)
+![LinkPreview Logo](https://raw.githubusercontent.com/Zettersten/LinkPreview/main/icon.png)
 
-# BadBotBlocker 🛡️
+# LinkPreview 🔗🖼️
 
-[![NuGet version](https://badge.fury.io/nu/BadBotBlocker.svg)](https://badge.fury.io/nu/BadBotBlocker)
+[![NuGet version](https://badge.fury.io/nu/LinkPreview.svg)](https://badge.fury.io/nu/LinkPreview)
 
-Welcome to the **BadBotBlocker** ASP.NET Core middleware! This library provides an efficient and customizable way to block malicious bots, scrapers, and unwanted traffic based on User-Agent patterns and IP ranges. It leverages a popular list of rules from an `.htaccess` file and focuses on extreme performance using the latest C# features.
+Welcome to the **LinkPreview** for .NET! This library provides a robust and efficient way to interact with the LinkPreview API, allowing you to easily fetch rich previews for URLs in your .NET applications. It features built-in caching, resilience policies, and flexible configuration options.
 
 ## Overview
 
-The **BadBotBlocker** middleware offers:
+The **LinkPreview** offers:
 
-- **Default Blocking Rules**: Preloaded with a comprehensive list of bad bot User-Agent patterns and IP ranges.
-- **Customizable**: Easily add or remove patterns and IP ranges to suit your application's needs.
-- **High Performance**: Optimized pattern matching and minimal overhead.
-- **Extensibility**: Provides extension methods for dependency injection and middleware configuration.
+- **Easy Integration**: Simple setup with dependency injection in ASP.NET Core applications.
+- **Caching**: Built-in memory caching with configurable TTL to reduce API calls and improve performance.
+- **Resilience**: Implements retry and circuit breaker patterns for improved reliability.
+- **Customizable**: Flexible configuration options to tailor the SDK to your needs.
+- **Strongly Typed**: Fully typed responses for a great developer experience.
 
 ## Getting Started
 
 ### Installation
 
-You can install the **BadBotBlocker** package from [NuGet](https://www.nuget.org/packages/BadBotBlocker/):
+Install the LinkPreview package from NuGet:
 
 ```sh
-dotnet add package BadBotBlocker
+dotnet add package LinkPreview
 ```
 
 ### Setting Up Dependency Injection
 
-To use the **BadBotBlocker** middleware in your ASP.NET Core application, configure your services in `Program.cs` or `Startup.cs`.
+Configure the LinkPreview service in your `Program.cs` or `Startup.cs`:
 
-#### Using Default Blocking Rules
+#### Using Default Configuration
 
 ```csharp
 public void ConfigureServices(IServiceCollection services)
 {
-    services.AddBadBotBlocker();
+    services.AddLinkPreviewService(Configuration);
 
     // Other service configurations...
 }
 ```
 
-#### Customizing Blocking Rules
+#### Customizing Configuration
 
 ```csharp
 public void ConfigureServices(IServiceCollection services)
 {
-    services.AddBadBotBlocker(options =>
+    services.AddLinkPreviewService(options =>
     {
-        options.ClearBadBotPatterns();
-        options.ClearBlockedIPRanges();
-
-        options.AddBadBotPattern("^MyCustomBot")
-               .AddBlockedIPRange("192.168.1.0/24");
+        options.ApiKey = "your-api-key-here";
+        options.CacheTTLMinutes = 30;
     });
 
     // Other service configurations...
@@ -60,121 +58,131 @@ public void ConfigureServices(IServiceCollection services)
 
 ## Usage
 
-In your `Program.cs` or `Startup.cs`, add the middleware to the HTTP request pipeline:
+Inject `ILinkPreviewService` into your controllers or services:
 
 ```csharp
-public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+public class MyController : ControllerBase
 {
-    app.UseBadBotBlocker();
+    private readonly ILinkPreviewService _linkPreviewService;
 
-    // Other middleware...
-    app.UseRouting();
-    app.UseEndpoints(endpoints =>
+    public MyController(ILinkPreviewService linkPreviewService)
     {
-        endpoints.MapControllers();
-    });
+        _linkPreviewService = linkPreviewService;
+    }
+
+    [HttpGet("preview")]
+    public async Task<IActionResult> GetPreview(string url)
+    {
+        try
+        {
+            var preview = await _linkPreviewService.GetLinkPreviewAsync(url);
+            return Ok(preview);
+        }
+        catch (LinkPreviewException ex)
+        {
+            return StatusCode((int)ex.StatusCode, ex.Message);
+        }
+    }
 }
 ```
 
 ## How It Works
 
-The **BadBotBlocker** middleware intercepts incoming HTTP requests and performs the following checks:
+The LinkPreview:
 
-1. **IP Address Check**: Determines if the client's IP address falls within any of the blocked IP ranges.
-2. **User-Agent Check**: Matches the client's User-Agent string against a list of known bad bot patterns.
+1. Accepts a URL and optional fields to retrieve.
+2. Checks the in-memory cache for an existing preview.
+3. If not cached, makes an API call to the LinkPreview service.
+4. Applies resilience policies (retry, circuit breaker) to handle transient failures.
+5. Caches the result for future requests.
+6. Returns a strongly-typed `LinkPreviewResponse`.
 
-If a match is found in either check, the middleware responds with a `403 Forbidden` status code, effectively blocking the request.
+## Features
 
-## Default Blocking Rules
+### Caching
 
-The middleware comes preloaded with a comprehensive list of bad bot User-Agent patterns and IP ranges, extracted from a popular `.htaccess` file. These include:
-
-- **Bad Bot User-Agent Patterns**: Over 200 patterns matching known malicious bots and scrapers.
-- **Blocked IP Ranges**: Specific IP ranges associated with unwanted traffic.
-
-### Examples of Default User-Agent Patterns
-
-- `^Aboundex`
-- `^80legs`
-- `Baiduspider` (Aggressive Chinese Search Engine)
-- `Yandex` (Aggressive Russian Search Engine)
-- `Acunetix` (Vulnerability Scanner)
-
-### Examples of Default Blocked IP Ranges
-
-- `38.100.19.8/29`
-- `65.213.208.128/27`
-- IP ranges associated with Cyveillance and other entities.
-
-## Extensibility
-
-You can customize the blocking rules by adding or removing patterns and IP ranges:
+The SDK includes built-in memory caching to reduce API calls:
 
 ```csharp
-services.AddBadBotBlocker(options =>
+services.AddLinkPreviewService(options =>
 {
-    // Remove all default patterns and IP ranges
-    options.ClearBadBotPatterns();
-    options.ClearBlockedIPRanges();
-
-    // Add custom patterns
-    options.AddBadBotPattern("^CustomBot")
-           .AddBadBotPattern("BadScraper");
-
-    // Add custom IP ranges
-    options.AddBlockedIPRange("123.456.789.0/24");
+    options.CacheTTLMinutes = 60; // Cache previews for 1 hour
 });
 ```
+
+### Optional Fields
+
+Specify additional fields to retrieve:
+
+```csharp
+var preview = await _linkPreviewService.GetLinkPreviewAsync(
+    "https://www.example.com",
+    LinkPreviewOptionalField.ImageX | LinkPreviewOptionalField.IconType | LinkPreviewOptionalField.Locale
+);
+```
+
+### Error Handling
+
+The SDK throws `LinkPreviewException` for all errors, including API errors and network issues:
+
+```csharp
+try
+{
+    var preview = await _linkPreviewService.GetLinkPreviewAsync(url);
+}
+catch (LinkPreviewException ex)
+{
+    Console.WriteLine($"Error: {ex.Message}, Status Code: {ex.StatusCode}");
+}
+```
+
+## Configuration Options
+
+| Option          | Description                                     | Default               |
+|-----------------|-------------------------------------------------|-----------------------|
+| ApiKey          | Your LinkPreview API key                        | -                     |
+| ApiBaseUrl      | Base URL for the LinkPreview API                | https://api.linkpreview.net |
+| CacheTTLMinutes | Cache time-to-live in minutes                   | 60                    |
 
 ## Supported Classes and Methods
 
-### BadBotOptions Class
+### ILinkPreviewService Interface
 
 | Method                      | Description                                     |
 |-----------------------------|-------------------------------------------------|
-| `AddBadBotPattern(string)`  | Adds a User-Agent pattern to block.             |
-| `AddBlockedIPRange(string)` | Adds an IP range in CIDR notation to block.     |
-| `ClearBadBotPatterns()`     | Clears all User-Agent patterns.                 |
-| `ClearBlockedIPRanges()`    | Clears all blocked IP ranges.                   |
+| `GetLinkPreviewAsync(string url, LinkPreviewOptionalField? optionalFields = null, CancellationToken cancellationToken = default)` | Retrieves a link preview for the specified URL. |
 
-### BadBotMiddlewareExtensions Class
+### LinkPreviewResponse Class
 
-| Method                      | Description                                     |
-|-----------------------------|-------------------------------------------------|
-| `UseBadBotBlocker()`        | Adds the middleware to the HTTP request pipeline. |
-| `AddBadBotBlocker()`        | Registers the middleware services with default configurations. |
-| `AddBadBotBlocker(Action<BadBotOptions>)` | Registers the middleware services with custom configurations. |
+Contains properties for all preview data, including:
+
+- Title
+- Description
+- Image URL
+- Site Name
+- Favicon
+- And more, depending on the optional fields requested
+
+### LinkPreviewOptionalField Enum
+
+Flags enum for specifying additional fields to retrieve:
+
+- Canonical
+- Locale
+- SiteName
+- ImageX, ImageY, ImageSize, ImageType
+- Icon, IconX, IconY, IconSize, IconType
 
 ## Performance Considerations
 
-- **Optimized Pattern Matching**: Differentiates between simple `StartsWith` patterns and complex regex patterns to minimize overhead.
-- **Compiled Regular Expressions**: Uses `RegexOptions.Compiled` for regex patterns to improve matching performance.
-- **Efficient IP Address Checking**: Utilizes an extension method for `IPAddress` to check IP ranges without external libraries.
-
-## Example
-
-### Blocking Custom Bots and IP Ranges
-
-```csharp
-services.AddBadBotBlocker(options =>
-{
-    options.AddBadBotPattern("^SneakyBot")
-           .AddBadBotPattern("EvilScraper")
-           .AddBlockedIPRange("10.0.0.0/8")
-           .AddBlockedIPRange("172.16.0.0/12");
-});
-```
-
-### Middleware Configuration
-
-```csharp
-app.UseBadBotBlocker();
-```
+- **Efficient Caching**: Reduces API calls for frequently requested URLs.
+- **Resilience Policies**: Implements retry and circuit breaker patterns to handle transient failures gracefully.
+- **Asynchronous Operations**: All operations are asynchronous for improved application responsiveness.
 
 ## Requirements
 
-- **.NET 8.0 or higher**: The library utilizes the latest features of C# 12 and .NET 8.
-- **ASP.NET Core Application**: Designed to work with ASP.NET Core middleware pipeline.
+- **.NET 6.0 or higher**: The SDK is built targeting .NET 6.0 and above.
+- **ASP.NET Core**: Designed to work seamlessly with ASP.NET Core dependency injection.
 
 ## License
 
@@ -182,12 +190,12 @@ This library is available under the [MIT License](LICENSE).
 
 ## Contributions
 
-Pull requests and contributions are welcome! Please open an issue to discuss any changes before submitting a pull request.
+Contributions are welcome! Please open an issue to discuss any changes before submitting a pull request.
 
 ## About
 
-For more information or support, please visit the [GitHub Repository](https://github.com/zettersten/BadBotBlocker).
+For more information, support, or to report issues, please visit the [GitHub Repository](https://github.com/zettersten/LinkPreview).
 
 ---
 
-Thank you for using **BadBotBlocker**. We look forward to your contributions and feedback!
+Thank you for using the **LinkPreview**. We look forward to seeing what you build with it!

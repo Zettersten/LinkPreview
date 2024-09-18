@@ -15,7 +15,10 @@ namespace LinkPreview
         /// <param name="services">The <see cref="IServiceCollection"/> to add services to.</param>
         /// <param name="configuration">The configuration section for LinkPreview options.</param>
         /// <returns>The <see cref="IServiceCollection"/> so that additional calls can be chained.</returns>
-        public static IServiceCollection AddLinkPreviewService(this IServiceCollection services, IConfiguration configuration)
+        public static IServiceCollection AddLinkPreviewService(
+            this IServiceCollection services,
+            IConfiguration configuration
+        )
         {
             services.AddLinkPreviewService(configuration.GetSection("LinkPreview"));
             return services;
@@ -27,7 +30,10 @@ namespace LinkPreview
         /// <param name="services">The <see cref="IServiceCollection"/> to add services to.</param>
         /// <param name="configurationSection">The configuration section for LinkPreview options.</param>
         /// <returns>The <see cref="IServiceCollection"/> so that additional calls can be chained.</returns>
-        public static IServiceCollection AddLinkPreviewService(this IServiceCollection services, IConfigurationSection configurationSection)
+        public static IServiceCollection AddLinkPreviewService(
+            this IServiceCollection services,
+            IConfigurationSection configurationSection
+        )
         {
             services.Configure<LinkPreviewOptions>(configurationSection);
             return services.AddLinkPreviewService();
@@ -39,7 +45,10 @@ namespace LinkPreview
         /// <param name="services">The <see cref="IServiceCollection"/> to add services to.</param>
         /// <param name="options">The action to configure the LinkPreview options.</param>
         /// <returns>The <see cref="IServiceCollection"/> so that additional calls can be chained.</returns>
-        public static IServiceCollection AddLinkPreviewService(this IServiceCollection services, Action<LinkPreviewOptions> options)
+        public static IServiceCollection AddLinkPreviewService(
+            this IServiceCollection services,
+            Action<LinkPreviewOptions> options
+        )
         {
             services.Configure(options);
             return services.AddLinkPreviewService();
@@ -54,13 +63,18 @@ namespace LinkPreview
         {
             services.AddMemoryCache();
 
-            services.AddHttpClient<ILinkPreviewService, LinkPreviewService>((serviceProvider, client) =>
-            {
-                var options = serviceProvider.GetRequiredService<IOptions<LinkPreviewOptions>>().Value;
-                client.BaseAddress = new Uri(options.ApiBaseUrl);
-                client.DefaultRequestHeaders.Add("X-Linkpreview-Api-Key", options.ApiKey);
-            })
-            .AddStandardResilienceHandler();
+            services
+                .AddHttpClient<ILinkPreviewService, LinkPreviewService>(
+                    (serviceProvider, client) =>
+                    {
+                        var options = serviceProvider
+                            .GetRequiredService<IOptions<LinkPreviewOptions>>()
+                            .Value;
+                        client.BaseAddress = new Uri(options.ApiBaseUrl);
+                        client.DefaultRequestHeaders.Add("X-Linkpreview-Api-Key", options.ApiKey);
+                    }
+                )
+                .AddStandardResilienceHandler();
 
             services.AddTransient<ILinkPreviewService, LinkPreviewService>();
 

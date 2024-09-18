@@ -72,12 +72,15 @@ public sealed class LinkPreviewException : Exception
     /// <param name="statusCode">The HTTP status code.</param>
     /// <param name="errorResponse">The error response from the LinkPreview service.</param>
     /// <returns>A formatted exception message.</returns>
-    private static string GetExceptionMessage(HttpStatusCode statusCode, LinkPreviewErrorResponse errorResponse)
+    private static string GetExceptionMessage(
+        HttpStatusCode statusCode,
+        LinkPreviewErrorResponse errorResponse
+    )
     {
-        return $"LinkPreview API Error: HTTP {(int)statusCode} ({statusCode}), " +
-               $"Error Code: {errorResponse.Error}, " +
-               $"Description: {errorResponse.Description}" +
-               (string.IsNullOrEmpty(errorResponse.Url) ? "" : $", URL: {errorResponse.Url}");
+        return $"LinkPreview API Error: HTTP {(int)statusCode} ({statusCode}), "
+            + $"Error Code: {errorResponse.Error}, "
+            + $"Description: {errorResponse.Description}"
+            + (string.IsNullOrEmpty(errorResponse.Url) ? "" : $", URL: {errorResponse.Url}");
     }
 
     /// <summary>
@@ -86,10 +89,10 @@ public sealed class LinkPreviewException : Exception
     /// <returns>A string that represents the current object.</returns>
     public override string ToString()
     {
-        return $"{base.ToString()}, " +
-               $"StatusCode: {StatusCode}, " +
-               $"ErrorCode: {ErrorCode}, " +
-               $"ErrorDescription: {ErrorDescription}" +
-               (Url != null ? $", URL: {Url}" : "");
+        return $"{base.ToString()}, "
+            + $"StatusCode: {StatusCode}, "
+            + $"ErrorCode: {ErrorCode}, "
+            + $"ErrorDescription: {ErrorDescription}"
+            + (Url != null ? $", URL: {Url}" : "");
     }
 }

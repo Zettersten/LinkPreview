@@ -14,5 +14,9 @@ public interface ILinkPreviewService
     /// <returns>
     /// Link preview information for the specified URL.
     /// </returns>
-    Task<LinkPreviewResponse> GetLinkPreviewAsync(string url, LinkPreviewOptionalField? optionalFields = null, CancellationToken cancellationToken = default);
+    Task<LinkPreviewResponse> GetLinkPreviewAsync(
+        string url,
+        LinkPreviewOptionalField? optionalFields = null,
+        CancellationToken cancellationToken = default
+    );
 }

@@ -87,7 +87,10 @@ public sealed class LinkPreviewResponse
     /// Gets or sets the web page's locale formatted as language_TERRITORY.
     /// </summary>
     [JsonPropertyName("locale")]
-    [RegularExpression(@"^[a-z]{2}_[A-Z]{2}$", ErrorMessage = "Locale must be in the format language_TERRITORY (e.g., en_US)")]
+    [RegularExpression(
+        @"^[a-z]{2}_[A-Z]{2}$",
+        ErrorMessage = "Locale must be in the format language_TERRITORY (e.g., en_US)"
+    )]
     public string? Locale { get; set; }
 
     /// <summary>
@@ -96,15 +99,15 @@ public sealed class LinkPreviewResponse
     /// <returns>True if the response includes any extended properties; otherwise, false.</returns>
     public bool IsExtendedResponse()
     {
-        return ImageSize.HasValue ||
-               !string.IsNullOrEmpty(ImageType) ||
-               ImageWidth.HasValue ||
-               ImageHeight.HasValue ||
-               !string.IsNullOrEmpty(Icon) ||
-               !string.IsNullOrEmpty(IconType) ||
-               IconWidth.HasValue ||
-               IconHeight.HasValue ||
-               !string.IsNullOrEmpty(Locale);
+        return ImageSize.HasValue
+            || !string.IsNullOrEmpty(ImageType)
+            || ImageWidth.HasValue
+            || ImageHeight.HasValue
+            || !string.IsNullOrEmpty(Icon)
+            || !string.IsNullOrEmpty(IconType)
+            || IconWidth.HasValue
+            || IconHeight.HasValue
+            || !string.IsNullOrEmpty(Locale);
     }
 
     /// <summary>
