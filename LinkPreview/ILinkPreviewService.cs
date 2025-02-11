@@ -16,8 +16,6 @@ public interface ILinkPreviewService
     /// <returns>
     /// Link preview information for the specified URL.
     /// </returns>
-    [RequiresUnreferencedCode("")]
-    [RequiresDynamicCode("")]
     Task<LinkPreviewResponse> GetLinkPreviewAsync(
         string url,
         LinkPreviewOptionalField? optionalFields = null,

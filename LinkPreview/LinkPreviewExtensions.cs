@@ -16,8 +16,6 @@ namespace LinkPreview
         /// <param name="services">The <see cref="IServiceCollection"/> to add services to.</param>
         /// <param name="configuration">The configuration section for LinkPreview options.</param>
         /// <returns>The <see cref="IServiceCollection"/> so that additional calls can be chained.</returns>
-        [RequiresUnreferencedCode("")]
-        [RequiresDynamicCode("")]
         public static IServiceCollection AddLinkPreviewService(
             this IServiceCollection services,
             IConfiguration configuration
@@ -33,8 +31,6 @@ namespace LinkPreview
         /// <param name="services">The <see cref="IServiceCollection"/> to add services to.</param>
         /// <param name="configurationSection">The configuration section for LinkPreview options.</param>
         /// <returns>The <see cref="IServiceCollection"/> so that additional calls can be chained.</returns>
-        [RequiresUnreferencedCode("")]
-        [RequiresDynamicCode("")]
         public static IServiceCollection AddLinkPreviewService(
             this IServiceCollection services,
             IConfigurationSection configurationSection

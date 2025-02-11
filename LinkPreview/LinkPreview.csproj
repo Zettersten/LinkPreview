@@ -22,10 +22,8 @@
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <EnablePreviewFeatures>true</EnablePreviewFeatures>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <PublishAot>false</PublishAot>
-    <IsAotCompatible>true</IsAotCompatible>
     <NoWarn>CS1591;CS0618;CS1573</NoWarn>
   </PropertyGroup>
 
