@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Text.Json;
+using LinkPreview.Polyfills;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
@@ -16,6 +17,7 @@ public sealed class LinkPreviewService : ILinkPreviewService
     private readonly HttpClient httpClient;
     private readonly IOptions<LinkPreviewOptions> options;
     private readonly IMemoryCache cache;
+    private readonly InstagramLinkPreviewService instagramAlternativePreviewService;
 
     public LinkPreviewService(
         HttpClient httpClient,
@@ -41,6 +43,8 @@ public sealed class LinkPreviewService : ILinkPreviewService
             "X-Linkpreview-Api-Key",
             this.options.Value.ApiKey
         );
+
+        this.instagramAlternativePreviewService = new InstagramLinkPreviewService();
     }
 
     /// <inheritdoc />
@@ -118,6 +122,28 @@ public sealed class LinkPreviewService : ILinkPreviewService
             var linkPreviewResponse = JsonSerializer.Deserialize<LinkPreviewResponse>(
                 linkPreviewResponseString
             );
+
+            if (
+                linkPreviewResponse != null
+                && (
+                    linkPreviewResponse.Title.Contains(
+                        "private media",
+                        StringComparison.OrdinalIgnoreCase
+                    )
+                    || linkPreviewResponse.Description.Contains(
+                        "private media",
+                        StringComparison.OrdinalIgnoreCase
+                    )
+                )
+                && url.Contains("instagram.com")
+            )
+            {
+                return await this.instagramAlternativePreviewService.GetLinkPreviewAsync(
+                    url,
+                    optionalFields,
+                    cancellationToken
+                );
+            }
 
             return linkPreviewResponse
                 ?? throw new LinkPreviewException(

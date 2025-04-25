@@ -91,7 +91,7 @@ public sealed class LinkPreviewResponse
         @"^[a-z]{2}_[A-Z]{2}$",
         ErrorMessage = "Locale must be in the format language_TERRITORY (e.g., en_US)"
     )]
-    public string? Locale { get; set; }
+    public string? Locale { get; set; } = "en_US";
 
     /// <summary>
     /// Determines whether the response includes extended properties.
