@@ -48,10 +48,18 @@ public class InstagramLinkPreviewServiceTests
     {
         var service = new InstagramLinkPreviewService();
 
-        var response = await service.GetLinkPreviewAsync(
+        var urlsToTest = new List<string>
+        {
+            "https://www.instagram.com/veefriendscards/reel/DGTJiQrMdqf/",
+            "https://www.instagram.com/veefriendscards/reel/DGTJiQrMdqf",
             "https://www.instagram.com/veefriendscards/p/DFWDA_Vy3xu/?img_index=1"
-        );
+        };
 
-        Assert.NotNull(response);
+        foreach (var item in urlsToTest)
+        {
+            var response = await service.GetLinkPreviewAsync(item);
+
+            Assert.NotNull(response);
+        }
     }
 }

@@ -51,6 +51,17 @@ public partial class InstagramLinkPreviewService : ILinkPreviewService
         var requestMessage = CreateInstagramHtmlRequestMessage(url, userAgent);
         var response = await this.httpClient.SendAsync(requestMessage, cancellationToken);
 
+        if (
+            response.StatusCode == System.Net.HttpStatusCode.MovedPermanently
+            && response.Headers.Location != null
+        )
+        {
+            var newUrl = response.Headers.Location.ToString().Trim().TrimEnd('#');
+
+            requestMessage = CreateInstagramHtmlRequestMessage(newUrl, userAgent);
+            response = await this.httpClient.SendAsync(requestMessage, cancellationToken);
+        }
+
         if (!response.IsSuccessStatusCode)
         {
             throw new LinkPreviewException(
