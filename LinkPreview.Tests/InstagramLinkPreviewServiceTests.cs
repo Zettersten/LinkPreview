@@ -12,7 +12,7 @@ public class InstagramLinkPreviewServiceTests
             <head>
             <meta property="og:description" content="132 likes, 19 comments - veefriendscards on January 27, 2025: &quot;The 1/1 Adaptable Alien Super Sticker has landed! 👽🛸
 
-            This ultra rare sticker was part of the Adaptable Alien Mystery Pin &amp; Sticker Boxes, an exclusive NYCC drop from October 2024. What makes it even more special? It’s signed by the creator and CEO of VeeFriends, @GaryVee ✍️ 
+            This ultra rare sticker was part of the Adaptable Alien Mystery Pin &amp; Sticker Boxes, an exclusive NYCC drop from October 2024. What makes it even more special? It’s signed by the creator and CEO of VeeFriends, @GaryVee ✍️
 
             #VeeFriends #NYCC #ComicCon #Stickers #oneofone&quot;. ">
 

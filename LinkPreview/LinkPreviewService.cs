@@ -18,6 +18,7 @@ public sealed class LinkPreviewService : ILinkPreviewService
     private readonly IOptions<LinkPreviewOptions> options;
     private readonly IMemoryCache cache;
     private readonly InstagramLinkPreviewService instagramAlternativePreviewService;
+    private readonly WhatNotLinkPreviewService whatNotAlternativePreviewService;
 
     public LinkPreviewService(
         HttpClient httpClient,
@@ -45,6 +46,7 @@ public sealed class LinkPreviewService : ILinkPreviewService
         );
 
         this.instagramAlternativePreviewService = new InstagramLinkPreviewService();
+        this.whatNotAlternativePreviewService = new WhatNotLinkPreviewService();
     }
 
     /// <inheritdoc />
@@ -113,7 +115,13 @@ public sealed class LinkPreviewService : ILinkPreviewService
                 cancellationToken
             );
 
-            response.EnsureSuccessStatusCode();
+            if (
+                response.StatusCode != System.Net.HttpStatusCode.OK
+                && response.StatusCode != (System.Net.HttpStatusCode)425
+            )
+            {
+                throw new LinkPreviewException("Failed to make the API request.");
+            }
 
             var linkPreviewResponseString = await response.Content.ReadAsStringAsync(
                 cancellationToken
@@ -139,6 +147,22 @@ public sealed class LinkPreviewService : ILinkPreviewService
             )
             {
                 return await this.instagramAlternativePreviewService.GetLinkPreviewAsync(
+                    url,
+                    optionalFields,
+                    cancellationToken
+                );
+            }
+
+            if (
+                linkPreviewResponse != null
+                && linkPreviewResponse.Description.Contains(
+                    "Invalid response",
+                    StringComparison.OrdinalIgnoreCase
+                )
+                && url.Contains("whatnot.com")
+            )
+            {
+                return await this.whatNotAlternativePreviewService.GetLinkPreviewAsync(
                     url,
                     optionalFields,
                     cancellationToken

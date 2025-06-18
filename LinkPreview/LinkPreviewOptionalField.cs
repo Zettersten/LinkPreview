@@ -1,4 +1,4 @@
-﻿namespace LinkPreview;
+namespace LinkPreview;
 
 /// <summary>
 /// Represents optional fields that can be requested from the LinkPreview API.
