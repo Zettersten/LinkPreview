@@ -1,3 +1,4 @@
+using LinkPreview.Polyfills;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -77,6 +78,32 @@ namespace LinkPreview
                 .AddStandardResilienceHandler();
 
             services.AddTransient<ILinkPreviewService, LinkPreviewService>();
+
+            // Automatically register all ILinkPreviewPolyfill implementations
+            var polyfillType = typeof(ILinkPreviewPolyfill);
+            var polyfillImplementations = AppDomain
+                .CurrentDomain.GetAssemblies()
+                .SelectMany(a =>
+                {
+                    try
+                    {
+                        return a.GetTypes();
+                    }
+                    catch
+                    {
+                        return [];
+                    }
+                })
+                .Where(t =>
+                    polyfillType.IsAssignableFrom(t) && t is { IsClass: true, IsAbstract: false }
+                )
+                .ToList();
+
+            foreach (var impl in polyfillImplementations)
+            {
+                services.AddSingleton(typeof(ILinkPreviewPolyfill), impl);
+            }
+            // Add more polyfills here as needed
 
             return services;
         }

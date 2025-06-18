@@ -17,18 +17,18 @@ public sealed class LinkPreviewService : ILinkPreviewService
     private readonly HttpClient httpClient;
     private readonly IOptions<LinkPreviewOptions> options;
     private readonly IMemoryCache cache;
-    private readonly InstagramLinkPreviewService instagramAlternativePreviewService;
-    private readonly WhatNotLinkPreviewService whatNotAlternativePreviewService;
+    private IEnumerable<ILinkPreviewPolyfill> polyfills;
 
     public LinkPreviewService(
         HttpClient httpClient,
         IOptions<LinkPreviewOptions> options,
-        IMemoryCache cache
+        IMemoryCache cache,
+        IEnumerable<ILinkPreviewPolyfill> polyfills
     )
     {
-        this.httpClient = httpClient ?? throw new LinkPreviewException("HTTP client is null.");
-        this.options = options ?? throw new LinkPreviewException("LinkPreview options are null.");
-        this.cache = cache ?? throw new LinkPreviewException("Memory cache is null.");
+        this.httpClient = httpClient;
+        this.options = options;
+        this.cache = cache;
 
         try
         {
@@ -45,8 +45,7 @@ public sealed class LinkPreviewService : ILinkPreviewService
             this.options.Value.ApiKey
         );
 
-        this.instagramAlternativePreviewService = new InstagramLinkPreviewService();
-        this.whatNotAlternativePreviewService = new WhatNotLinkPreviewService();
+        this.polyfills = polyfills;
     }
 
     /// <inheritdoc />
@@ -88,6 +87,22 @@ public sealed class LinkPreviewService : ILinkPreviewService
         CancellationToken cancellationToken
     )
     {
+        // 1. Eager polyfills
+        foreach (var polyfill in this.polyfills.Where(p => p.IsEager && p.CanHandle(url)))
+        {
+            var eagerResult = await polyfill.TryGetLinkPreviewAsync(url, cancellationToken);
+
+            if (eagerResult != null)
+            {
+                eagerResult.IsPolyfill = true;
+                return eagerResult;
+            }
+        }
+
+        // 2. Main API
+        LinkPreviewResponse? linkPreviewResponse = null;
+        Exception? mainApiException = null;
+
         try
         {
             if (!Uri.TryCreate(url, UriKind.Absolute, out _))
@@ -127,72 +142,45 @@ public sealed class LinkPreviewService : ILinkPreviewService
                 cancellationToken
             );
 
-            var linkPreviewResponse = JsonSerializer.Deserialize<LinkPreviewResponse>(
+            linkPreviewResponse = JsonSerializer.Deserialize<LinkPreviewResponse>(
                 linkPreviewResponseString
             );
 
-            if (
-                linkPreviewResponse != null
-                && (
-                    linkPreviewResponse.Title.Contains(
-                        "private media",
-                        StringComparison.OrdinalIgnoreCase
-                    )
-                    || linkPreviewResponse.Description.Contains(
-                        "private media",
-                        StringComparison.OrdinalIgnoreCase
-                    )
-                )
-                && url.Contains("instagram.com")
-            )
+            if (linkPreviewResponse == null)
             {
-                return await this.instagramAlternativePreviewService.GetLinkPreviewAsync(
-                    url,
-                    optionalFields,
-                    cancellationToken
-                );
-            }
-
-            if (
-                linkPreviewResponse != null
-                && linkPreviewResponse.Description.Contains(
-                    "Invalid response",
-                    StringComparison.OrdinalIgnoreCase
-                )
-                && url.Contains("whatnot.com")
-            )
-            {
-                return await this.whatNotAlternativePreviewService.GetLinkPreviewAsync(
-                    url,
-                    optionalFields,
-                    cancellationToken
-                );
-            }
-
-            return linkPreviewResponse
-                ?? throw new LinkPreviewException(
+                throw new LinkPreviewException(
                     System.Net.HttpStatusCode.InternalServerError,
                     "Failed to deserialize the API response."
                 );
-        }
-        catch (HttpRequestException ex)
-        {
-            throw new LinkPreviewException(
-                ex.StatusCode ?? System.Net.HttpStatusCode.InternalServerError,
-                ex.Message
-            );
-        }
-        catch (TaskCanceledException)
-        {
-            throw new LinkPreviewException(
-                System.Net.HttpStatusCode.RequestTimeout,
-                "The request timed out."
-            );
+            }
+
+            return linkPreviewResponse;
         }
         catch (Exception ex) when (ex is not LinkPreviewException)
         {
-            throw new LinkPreviewException($"An unexpected error occurred: {ex.Message}");
+            mainApiException = new LinkPreviewException(
+                $"An unexpected error occurred: {ex.Message}"
+            );
         }
+        catch (LinkPreviewException ex)
+        {
+            mainApiException = ex;
+        }
+
+        // 3. Lazy polyfills (if main API failed)
+        foreach (var polyfill in this.polyfills.Where(p => !p.IsEager && p.CanHandle(url)))
+        {
+            var lazyResult = await polyfill.TryGetLinkPreviewAsync(url, cancellationToken);
+
+            if (lazyResult != null)
+            {
+                lazyResult.IsPolyfill = true;
+                return lazyResult;
+            }
+        }
+
+        // 4. If all else fails, throw the main API exception or a generic one
+        throw mainApiException ?? new LinkPreviewException("No preview available.");
     }
 
     private static string GetCacheKey(string url, LinkPreviewOptionalField? optionalFields)

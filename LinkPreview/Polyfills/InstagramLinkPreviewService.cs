@@ -1,12 +1,9 @@
-using System.Text.RegularExpressions;
-using System.Web;
 using ImageSizeReader;
 
 namespace LinkPreview.Polyfills;
 
-public partial class InstagramLinkPreviewService : ILinkPreviewService
+public partial class InstagramLinkPreviewService : PolyfillBase, ILinkPreviewPolyfill
 {
-    private readonly Queue<string> userAgentQueue;
     private readonly ImageSizeReaderUtil imageUtils;
     private readonly HttpClient httpClient;
 
@@ -29,90 +26,10 @@ public partial class InstagramLinkPreviewService : ILinkPreviewService
             BaseAddress = new Uri("https://www.instagram.com/"),
         };
 
-        this.userAgentQueue = CreateUserAgentQueue();
         this.imageUtils = new ImageSizeReaderUtil();
     }
 
-    public async Task<LinkPreviewResponse> GetLinkPreviewAsync(
-        string url,
-        LinkPreviewOptionalField? optionalFields = null,
-        CancellationToken cancellationToken = default
-    )
-    {
-        if (!IsValidInstagramUrl(url))
-        {
-            throw new LinkPreviewException(
-                System.Net.HttpStatusCode.InternalServerError,
-                "URL provided was not instagram."
-            );
-        }
-
-        var userAgent = this.GetNextUserAgentIfRequired();
-        var requestMessage = CreateInstagramHtmlRequestMessage(url, userAgent);
-        var response = await this.httpClient.SendAsync(requestMessage, cancellationToken);
-
-        if (
-            response.StatusCode == System.Net.HttpStatusCode.MovedPermanently
-            && response.Headers.Location != null
-        )
-        {
-            var newUrl = response.Headers.Location.ToString().Trim().TrimEnd('#');
-
-            requestMessage = CreateInstagramHtmlRequestMessage(newUrl, userAgent);
-            response = await this.httpClient.SendAsync(requestMessage, cancellationToken);
-        }
-
-        if (!response.IsSuccessStatusCode)
-        {
-            throw new LinkPreviewException(
-                System.Net.HttpStatusCode.InternalServerError,
-                $"Instagram failed to respond. Their status code: {response.StatusCode}"
-            );
-        }
-
-        var currentCount = this.CurrentUsageCount;
-        var newCount = Interlocked.Increment(ref currentCount);
-
-        this.CurrentUsageCount = newCount;
-
-        var htmlContent = await response.Content.ReadAsStringAsync(cancellationToken);
-
-        if (string.IsNullOrEmpty(htmlContent))
-        {
-            throw new LinkPreviewException(
-                System.Net.HttpStatusCode.InternalServerError,
-                "Instagram response was empty."
-            );
-        }
-
-        var linkPreviewResponse = ParseInstagramResponse(htmlContent);
-
-        var dimensions = await this.GetImageDimensions(linkPreviewResponse, cancellationToken);
-
-        linkPreviewResponse.ImageHeight = dimensions.ImageHeight;
-        linkPreviewResponse.ImageWidth = dimensions.ImageWidth;
-        linkPreviewResponse.ImageType = Convert.ToBase64String(dimensions.ImageBytes);
-
-        return linkPreviewResponse;
-    }
-
-    private string GetNextUserAgentIfRequired()
-    {
-        if (this.CurrentUsageCount % 5 == 0)
-        {
-            var userAgent = this.userAgentQueue.Dequeue();
-            this.userAgentQueue.Enqueue(userAgent);
-
-            return userAgent;
-        }
-
-        var defaultUserAgent = this.userAgentQueue.Dequeue();
-        this.userAgentQueue.Enqueue(defaultUserAgent);
-
-        return defaultUserAgent;
-    }
-
-    private int CurrentUsageCount { get; set; } = 0;
+    public bool IsEager => true;
 
     private static bool IsValidInstagramUrl(string url)
     {
@@ -207,7 +124,7 @@ public partial class InstagramLinkPreviewService : ILinkPreviewService
         return requestMessage;
     }
 
-    public static LinkPreviewResponse ParseInstagramResponse(string htmlContent)
+    public static LinkPreviewResponse ParseInstagramResponse(string url, string htmlContent)
     {
         if (string.IsNullOrWhiteSpace(htmlContent))
         {
@@ -217,33 +134,9 @@ public partial class InstagramLinkPreviewService : ILinkPreviewService
             );
         }
 
-        var descriptionRegex = SocialDescriptionMetaRegex();
-        var urlRegex = UrlMetaRegex();
-        var imageRegex = ImageMetaRegex();
-        var twitterRegex = TwitterMetaRegex();
+        var metadata = GetMetadata(htmlContent);
 
-        var descriptionMatch = descriptionRegex.Match(htmlContent);
-        var urlMatch = urlRegex.Match(htmlContent);
-        var imageMatch = imageRegex.Match(htmlContent);
-        var twitterMatch = twitterRegex.Match(htmlContent);
-
-        var description = CleanAndNormalizeText(
-            descriptionMatch.Success ? descriptionMatch.Groups[1].Value : string.Empty
-        );
-
-        var url = urlMatch.Success ? urlMatch.Groups[1].Value : string.Empty;
-        var image = (imageMatch.Success ? imageMatch.Groups[1].Value : string.Empty).Replace(
-            "&amp;",
-            "&"
-        );
-
-        if (
-            !TryParseUsernameAndDisplayName(
-                twitterMatch.Success ? twitterMatch.Groups[1].Value : string.Empty,
-                out var username,
-                out var displayName
-            )
-        )
+        if (string.IsNullOrEmpty(metadata.Username) || string.IsNullOrEmpty(metadata.DisplayName))
         {
             throw new LinkPreviewException(
                 System.Net.HttpStatusCode.InternalServerError,
@@ -251,7 +144,11 @@ public partial class InstagramLinkPreviewService : ILinkPreviewService
             );
         }
 
-        if (!TryParseDescription(description, out var metaDescription))
+        if (
+            string.IsNullOrEmpty(metadata.OgDescription)
+            && string.IsNullOrEmpty(metadata.SiteDescription)
+            && string.IsNullOrEmpty(metadata.TwitterDescription)
+        )
         {
             throw new LinkPreviewException(
                 System.Net.HttpStatusCode.InternalServerError,
@@ -259,14 +156,18 @@ public partial class InstagramLinkPreviewService : ILinkPreviewService
             );
         }
 
-        var linkPreviewTitle = $"A post shared by {displayName} (@{username})";
+        var linkPreviewTitle = $"A post shared by {metadata.DisplayName} (@{metadata.Username})";
 
         return new LinkPreviewResponse
         {
             Title = linkPreviewTitle,
-            Description = metaDescription,
+            Description =
+                metadata.OgDescription
+                ?? metadata.TwitterDescription
+                ?? metadata.SiteDescription
+                ?? string.Empty,
             Url = url,
-            Image = image,
+            Image = metadata.OgImage ?? metadata.TwitterImage ?? string.Empty,
             ImageSize = null,
             ImageType = null,
             ImageWidth = null,
@@ -274,187 +175,66 @@ public partial class InstagramLinkPreviewService : ILinkPreviewService
         };
     }
 
-    private static bool TryParseUsernameAndDisplayName(
-        string input,
-        out string username,
-        out string displayName
-    )
-    {
-        username = string.Empty;
-        displayName = string.Empty;
+    public bool CanHandle(string url) => IsValidInstagramUrl(url);
 
-        var regex = UsernameMetaRegex();
-        var match = regex.Match(input);
-
-        if (match.Success)
-        {
-            displayName = match.Groups[1].Value.Trim();
-            username = match.Groups[2].Value.Trim();
-            return true;
-        }
-
-        return false;
-    }
-
-    public static bool TryParseDescription(string input, out string description)
-    {
-        description = string.Empty;
-        var regex = DescriptionMetaRegex();
-        var matches = regex.Matches(input);
-
-        if (matches.Count > 0)
-        {
-            description = matches[0].Groups[1].Value;
-            return true;
-        }
-
-        return false;
-    }
-
-    private static string CleanAndNormalizeText(string input)
-    {
-        if (string.IsNullOrWhiteSpace(input))
-        {
-            return string.Empty;
-        }
-
-        // Step 1: Remove new line characters
-        input = input.Replace("\r", "").Replace("\n", "");
-
-        // Step 2: Trim and normalize white spaces
-        input = string.Join(" ", input.Split([' '], StringSplitOptions.RemoveEmptyEntries));
-
-        // Step 3: Encode HTML special characters
-        input = HttpUtility.HtmlDecode(input);
-
-        return input;
-    }
-
-    private static Queue<string> CreateUserAgentQueue()
-    {
-        var userAgentQueue = new Queue<string>();
-
-        userAgentQueue.Enqueue(
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36 Edg/135.0.0.0"
-        );
-        userAgentQueue.Enqueue(
-            "Mozilla/5.0 (Macintosh; U; Intel Mac OS X 8_8_0) Gecko/20100101 Firefox/73.1"
-        );
-        userAgentQueue.Enqueue(
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 8_1_5) Gecko/20130401 Firefox/48.7"
-        );
-        userAgentQueue.Enqueue(
-            "Mozilla/5.0 (Windows NT 6.1; Win64; x64; en-US) AppleWebKit/536.24 (KHTML, like Gecko) Chrome/51.0.2813.324 Safari/535"
-        );
-        userAgentQueue.Enqueue(
-            "Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.0;; en-US Trident/5.0)"
-        );
-        userAgentQueue.Enqueue(
-            "Mozilla/5.0 (Linux; U; Android 5.1; Nexus 8 Build/LMY48B) AppleWebKit/534.16 (KHTML, like Gecko)  Chrome/53.0.1006.222 Mobile Safari/534.0"
-        );
-        userAgentQueue.Enqueue(
-            "Mozilla/5.0 (Android; Android 7.0; GT-I9800 Build/KTU84P) AppleWebKit/537.1 (KHTML, like Gecko)  Chrome/52.0.3068.285 Mobile Safari/535.8"
-        );
-        userAgentQueue.Enqueue(
-            "Mozilla/5.0 (Macintosh; U; Intel Mac OS X 9_3_7; en-US) Gecko/20100101 Firefox/65.7"
-        );
-        userAgentQueue.Enqueue(
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_6; en-US) AppleWebKit/537.24 (KHTML, like Gecko) Chrome/51.0.1015.215 Safari/601"
-        );
-        userAgentQueue.Enqueue(
-            "Mozilla/5.0 (Windows; Windows NT 10.4; WOW64; en-US) AppleWebKit/602.50 (KHTML, like Gecko) Chrome/53.0.3549.265 Safari/602.9 Edge/11.98021"
-        );
-        userAgentQueue.Enqueue("Mozilla/5.0 (U; Linux x86_64; en-US) Gecko/20100101 Firefox/62.6");
-
-        return userAgentQueue;
-    }
-
-    [GeneratedRegex("\"(.*?)\"", RegexOptions.Singleline)]
-    private static partial Regex DescriptionMetaRegex();
-
-    [GeneratedRegex(@"^(.*?)\s+\(&#064;([a-zA-Z0-9_]+)\)", RegexOptions.Singleline)]
-    private static partial Regex UsernameMetaRegex();
-
-    [GeneratedRegex(
-        @"<title>(.*?)<\/title>",
-        RegexOptions.IgnoreCase | RegexOptions.Singleline,
-        "en-US"
-    )]
-    private static partial Regex TitleMetaRegex();
-
-    [GeneratedRegex(
-        @"<meta property=""og:description"" content=""(.*?)""",
-        RegexOptions.IgnoreCase | RegexOptions.Singleline,
-        "en-US"
-    )]
-    private static partial Regex SocialDescriptionMetaRegex();
-
-    [GeneratedRegex(
-        @"<meta property=""og:url"" content=""(.*?)""",
-        RegexOptions.IgnoreCase | RegexOptions.Singleline,
-        "en-US"
-    )]
-    private static partial Regex UrlMetaRegex();
-
-    [GeneratedRegex(
-        @"<meta property=""og:image"" content=""(.*?)""",
-        RegexOptions.IgnoreCase | RegexOptions.Singleline,
-        "en-US"
-    )]
-    private static partial Regex ImageMetaRegex();
-
-    [GeneratedRegex(
-        @"<meta\s+name=""twitter:title""\s+content=""(.*?)""\s*\/?>",
-        RegexOptions.IgnoreCase | RegexOptions.Singleline,
-        "en-US"
-    )]
-    private static partial Regex TwitterMetaRegex();
-
-    private async Task<(int ImageHeight, int ImageWidth, byte[] ImageBytes)> GetImageDimensions(
-        LinkPreviewResponse linkPreviewResponse,
+    public async Task<LinkPreviewResponse?> TryGetLinkPreviewAsync(
+        string url,
         CancellationToken cancellationToken
     )
     {
-        // Your existing code to get the image bytes
-        var userAgent = this.GetNextUserAgentIfRequired();
-        var imageRequest = CreateInstagramImageRequestMessage(linkPreviewResponse.Image, userAgent);
-        var response = await this.httpClient.SendAsync(imageRequest, cancellationToken);
-        if (!response.IsSuccessStatusCode)
+        try
         {
-            throw new LinkPreviewException(
-                System.Net.HttpStatusCode.InternalServerError,
-                $"Instagram failed to respond. Their status code: {response.StatusCode}"
+            if (!IsValidInstagramUrl(url))
+            {
+                throw new LinkPreviewException(
+                    System.Net.HttpStatusCode.InternalServerError,
+                    "URL provided was not instagram."
+                );
+            }
+
+            var response = await this.SendWithRedirectAsync(
+                this.httpClient,
+                CreateInstagramHtmlRequestMessage,
+                url,
+                cancellationToken
             );
-        }
 
-        using var imageContent = await response.Content.ReadAsStreamAsync(cancellationToken);
-        using var ms = new MemoryStream();
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new LinkPreviewException(
+                    System.Net.HttpStatusCode.InternalServerError,
+                    $"Failed to fetch HTML: {response.StatusCode}"
+                );
+            }
 
-        await imageContent.CopyToAsync(ms, cancellationToken);
+            var htmlContent = await response.Content.ReadAsStringAsync(cancellationToken);
 
-        imageContent.Seek(0, SeekOrigin.Begin);
+            if (string.IsNullOrEmpty(htmlContent))
+            {
+                throw new LinkPreviewException(
+                    System.Net.HttpStatusCode.InternalServerError,
+                    "Instagram response was empty."
+                );
+            }
 
-        if (imageContent == null || imageContent.Length == 0)
-        {
-            throw new LinkPreviewException(
-                System.Net.HttpStatusCode.InternalServerError,
-                "Instagram response was empty."
+            var linkPreviewResponse = ParseInstagramResponse(url, htmlContent);
+
+            var (ImageHeight, ImageWidth, ImageBytes) = await this.DownloadAndExtractImageAsync(
+                linkPreviewResponse.Image,
+                this.imageUtils,
+                CreateInstagramImageRequestMessage,
+                cancellationToken
             );
+
+            linkPreviewResponse.ImageHeight = ImageHeight;
+            linkPreviewResponse.ImageWidth = ImageWidth;
+            linkPreviewResponse.ImageType = Convert.ToBase64String(ImageBytes);
+
+            return linkPreviewResponse;
         }
-
-        // Determine the image format
-        var dimensions = this.imageUtils.GetDimensions(imageContent);
-
-        ms.Seek(0, SeekOrigin.Begin);
-
-        if (dimensions != null)
+        catch
         {
-            return (dimensions.Height, dimensions.Width, ms.ToArray());
+            return null;
         }
-
-        throw new LinkPreviewException(
-            System.Net.HttpStatusCode.InternalServerError,
-            "Unsupported image format."
-        );
     }
 }
