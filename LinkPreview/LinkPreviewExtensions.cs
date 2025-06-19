@@ -56,6 +56,28 @@ namespace LinkPreview
         }
 
         /// <summary>
+        /// Adds the LinkPreview service to the specified <see cref="IServiceCollection"/> with the provided options.
+        /// </summary>
+        /// <param name="services">The <see cref="IServiceCollection"/> to add services to.</param>
+        /// <param name="optionsFactory">
+        /// A factory function to create the LinkPreview options, given an <see cref="IServiceProvider"/>.
+        /// </param>
+        /// <returns>The <see cref="IServiceCollection"/> so that additional calls can be chained.</returns>
+        public static IServiceCollection AddLinkPreviewService(
+            this IServiceCollection services,
+            Func<IServiceProvider, LinkPreviewOptions> optionsFactory
+        )
+        {
+            services.AddSingleton(provider =>
+            {
+                var options = optionsFactory(provider);
+                return Options.Create(options);
+            });
+
+            return services.AddLinkPreviewService();
+        }
+
+        /// <summary>
         /// Adds the LinkPreview service to the specified <see cref="IServiceCollection"/> with default or preconfigured options.
         /// </summary>
         /// <param name="services">The <see cref="IServiceCollection"/> to add services to.</param>

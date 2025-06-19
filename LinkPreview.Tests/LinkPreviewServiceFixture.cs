@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace LinkPreview.Tests;
@@ -29,7 +30,14 @@ public sealed class LinkPreviewServiceFixture
 
         // Register dependencies
         services.AddMemoryCache();
-        services.AddLinkPreviewService(x => x.ApiKey = apiKeyFromEnvFile);
+        services.AddLinkPreviewService(
+            (sp) =>
+            {
+                var memCache = sp.GetRequiredService<IMemoryCache>();
+
+                return new LinkPreviewOptions { ApiKey = apiKeyFromEnvFile };
+            }
+        );
 
         this.ServiceProvider = services.BuildServiceProvider();
     }
