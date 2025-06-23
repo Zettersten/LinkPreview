@@ -11,14 +11,13 @@ public class LinkPreviewServiceTests : IClassFixture<LinkPreviewServiceFixture>
         this.service = fixture.ServiceProvider.GetRequiredService<ILinkPreviewService>();
     }
 
-    [Fact]
-    public async Task GetLinkPreviewAsync_ReturnsResult()
+    [Theory]
+    [InlineData("https://veefriends.com/")]
+    [InlineData("https://bestbuy.com")]
+    public async Task GetLinkPreviewAsync_ReturnsResult(string url)
     {
-        // Arrange
-        var url = "https://www.example.com";
-
         // Act
-        var result = await this.service.GetLinkPreviewAsync(url);
+        var result = await this.service.GetLinkPreviewAsync(url, LinkPreviewOptionalField.Icon);
 
         // Assert
         Assert.NotNull(result);

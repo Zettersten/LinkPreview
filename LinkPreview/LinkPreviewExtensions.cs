@@ -86,6 +86,8 @@ namespace LinkPreview
         {
             services.AddMemoryCache();
 
+            services.AddHttpClient<LinkPreviewUrlVerifier>().AddStandardResilienceHandler();
+
             services
                 .AddHttpClient<ILinkPreviewService, LinkPreviewService>(
                     (serviceProvider, client) =>

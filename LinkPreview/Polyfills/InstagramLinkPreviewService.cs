@@ -134,7 +134,7 @@ public partial class InstagramLinkPreviewService : PolyfillBase, ILinkPreviewPol
             );
         }
 
-        var metadata = GetMetadata(htmlContent);
+        var metadata = GetMetadata(htmlContent, "https://instagram.com");
 
         if (string.IsNullOrEmpty(metadata.Username) || string.IsNullOrEmpty(metadata.DisplayName))
         {
@@ -168,6 +168,7 @@ public partial class InstagramLinkPreviewService : PolyfillBase, ILinkPreviewPol
                 ?? string.Empty,
             Url = url,
             Image = metadata.OgImage ?? metadata.TwitterImage ?? string.Empty,
+            Icon = metadata.Favicon,
             ImageSize = null,
             ImageType = null,
             ImageWidth = null,

@@ -17,18 +17,21 @@ public sealed class LinkPreviewService : ILinkPreviewService
     private readonly HttpClient httpClient;
     private readonly IOptions<LinkPreviewOptions> options;
     private readonly IMemoryCache cache;
+    private readonly LinkPreviewUrlVerifier linkPreviewUrlVerifier;
     private IEnumerable<ILinkPreviewPolyfill> polyfills;
 
     public LinkPreviewService(
         HttpClient httpClient,
         IOptions<LinkPreviewOptions> options,
         IMemoryCache cache,
+        LinkPreviewUrlVerifier linkPreviewUrlVerifier,
         IEnumerable<ILinkPreviewPolyfill> polyfills
     )
     {
         this.httpClient = httpClient;
         this.options = options;
         this.cache = cache;
+        this.linkPreviewUrlVerifier = linkPreviewUrlVerifier;
 
         try
         {
@@ -66,9 +69,12 @@ public sealed class LinkPreviewService : ILinkPreviewService
 
         var response = await this.FetchLinkPreviewAsync(url, optionalFields, cancellationToken);
 
-        var cacheEntryOptions = new MemoryCacheEntryOptions().SetAbsoluteExpiration(
-            TimeSpan.FromMinutes(this.options.Value.CacheTTLMinutes)
-        );
+        var cacheEntryOptions = new MemoryCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(
+                this.options.Value.CacheTTLMinutes
+            )
+        };
 
         this.cache.Set(cacheKey, response, cacheEntryOptions);
 
@@ -100,6 +106,8 @@ public sealed class LinkPreviewService : ILinkPreviewService
         }
 
         // 2. Main API
+        url = await this.linkPreviewUrlVerifier.VerifyAsync(url, cancellationToken);
+
         LinkPreviewResponse? linkPreviewResponse = null;
         Exception? mainApiException = null;
 
@@ -146,11 +154,19 @@ public sealed class LinkPreviewService : ILinkPreviewService
                 linkPreviewResponseString
             );
 
-            if (linkPreviewResponse == null)
+            if (
+                linkPreviewResponse == null
+                || (
+                    string.IsNullOrEmpty(linkPreviewResponse.Image)
+                    && string.IsNullOrEmpty(linkPreviewResponse.Title)
+                )
+            )
             {
                 throw new LinkPreviewException(
                     System.Net.HttpStatusCode.InternalServerError,
-                    "Failed to deserialize the API response."
+                    string.IsNullOrEmpty(linkPreviewResponse?.Description)
+                        ? "Failed to deserialize the API response."
+                        : linkPreviewResponse.Description
                 );
             }
 

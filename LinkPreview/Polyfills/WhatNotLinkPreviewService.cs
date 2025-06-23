@@ -91,7 +91,7 @@ public partial class WhatNotLinkPreviewService : PolyfillBase, ILinkPreviewPolyf
             );
         }
 
-        var metadata = GetMetadata(htmlContent);
+        var metadata = GetMetadata(htmlContent, "https://www.whatnot.com/");
 
         if (
             string.IsNullOrEmpty(metadata.OgDescription)
@@ -115,6 +115,7 @@ public partial class WhatNotLinkPreviewService : PolyfillBase, ILinkPreviewPolyf
                 ?? string.Empty,
             Url = url,
             Image = metadata.OgImage ?? metadata.TwitterImage ?? string.Empty,
+            Icon = metadata.Favicon,
             ImageSize = null,
             ImageType = null,
             ImageWidth = null,

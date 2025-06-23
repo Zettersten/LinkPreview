@@ -41,7 +41,7 @@ public abstract partial class PolyfillBase
     /// <summary>
     /// Extracts metadata from HTML using a set of regexes.
     /// </summary>
-    protected static Metadata GetMetadata(string html)
+    protected static Metadata GetMetadata(string html, string hostUrl)
     {
         static string? GetGroupValue(Match match) =>
             match.Success && match.Groups.Count > 1
@@ -56,14 +56,21 @@ public abstract partial class PolyfillBase
         var twitterTitle = GetGroupValue(TwitterTitleRegex().Match(html));
         var twitterDescription = GetGroupValue(TwitterDescriptionRegex().Match(html));
         var twitterImage = GetGroupValue(TwitterImageRegex().Match(html))?.Replace("&amp;", "&");
+        var favicon = GetGroupValue(FaviconLinkRegex().Match(html))?.Replace("&amp;", "&");
 
         string? username = null,
             displayName = null;
         var match = UsernameMetaRegex().Match(twitterTitle ?? ogTitle ?? siteTitle ?? string.Empty);
+
         if (match.Success)
         {
             displayName = match.Groups[1].Value.Trim();
             username = match.Groups[2].Value.Trim();
+        }
+
+        if (!string.IsNullOrEmpty(favicon) && favicon.StartsWith('/'))
+        {
+            favicon = $"{hostUrl.TrimEnd('/')}{favicon}";
         }
 
         return new Metadata(
@@ -76,7 +83,8 @@ public abstract partial class PolyfillBase
             twitterDescription,
             twitterImage,
             username,
-            displayName
+            displayName,
+            favicon
         );
     }
 
@@ -94,11 +102,31 @@ public abstract partial class PolyfillBase
         return HttpUtility.HtmlDecode(cleaned);
     }
 
-    private static Queue<string> CreateUserAgentQueue()
+    internal static Queue<string> CreateUserAgentQueue()
     {
         return new Queue<string>(
             [
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36 Edg/137.0.0.0",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                "Slackbot-LinkExpanding 1.0 (+https://api.slack.com/robots)",
+                "Slack-ImgProxy (+https://api.slack.com/robots)",
+                "Discordbot/2.0; +https://discordapp.com",
+                "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
+                "facebookexternalhit/1.1",
+                "Twitterbot/1.0",
+                "TelegramBot (like TwitterBot)",
+                "WhatsApp/2.24.6.77 A",
+                "Google-Structured-Data-Testing-Tool",
+                "LinkedInBot/1.0 (+http://www.linkedin.com)",
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_4_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15",
+                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.6312.122 Safari/537.36",
+                "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+                "Mozilla/5.0 (Linux; Android 14; SM-S928U) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6367.207 Mobile Safari/537.36",
+                "Mozilla/5.0 (iPad; CPU OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0",
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                "Mozilla/5.0 (Linux; Android 13; Pixel 7 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6367.207 Mobile Safari/537.36",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Edg/124.0.2478.80",
                 "Mozilla/5.0 (Macintosh; U; Intel Mac OS X 8_8_0) Gecko/20100101 Firefox/73.1",
                 "Mozilla/5.0 (Macintosh; Intel Mac OS X 8_1_5) Gecko/20130401 Firefox/48.7",
                 "Mozilla/5.0 (Windows NT 6.1; Win64; x64; en-US) AppleWebKit/536.24 (KHTML, like Gecko) Chrome/51.0.2813.324 Safari/535",
@@ -131,6 +159,24 @@ public abstract partial class PolyfillBase
             {
                 request = createRequest(newUrl, ua);
                 response = await client.SendAsync(request, cancellationToken);
+            }
+        }
+
+        if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+        {
+            var retryCount = 0;
+            var totalRetries = this.userAgentQueue.Count;
+
+            // Retry with a new user agent if forbidden
+            while (
+                response.StatusCode == System.Net.HttpStatusCode.Forbidden
+                && retryCount < totalRetries
+            )
+            {
+                ua = this.GetNextUserAgent();
+                request = createRequest(url, ua);
+                response = await client.SendAsync(request, cancellationToken);
+                retryCount++;
             }
         }
 
@@ -244,6 +290,14 @@ public abstract partial class PolyfillBase
     [GeneratedRegex(@"^(.*?)\s+\((?:&#064;|@)([a-zA-Z0-9_]+)\)", RegexOptions.Singleline)]
     private static partial Regex UsernameMetaRegex();
 
+    // Matches <link rel="icon" ... href="..."> and similar favicon declarations in the <head>
+    [GeneratedRegex(
+        @"<link\s+[^>]*rel\s*=\s*[""'](?:shortcut\s+icon|icon|apple-touch-icon(?:-precomposed)?|mask-icon)[""'][^>]*href\s*=\s*[""']([^""'>]+)[""'][^>]*>",
+        RegexOptions.IgnoreCase | RegexOptions.Singleline,
+        "en-US"
+    )]
+    private static partial Regex FaviconLinkRegex();
+
     /// <summary>
     /// Metadata record for extracted HTML meta tags.
     /// </summary>
@@ -257,6 +311,7 @@ public abstract partial class PolyfillBase
         string? TwitterDescription,
         string? TwitterImage,
         string? Username,
-        string? DisplayName
+        string? DisplayName,
+        string? Favicon
     );
 }
