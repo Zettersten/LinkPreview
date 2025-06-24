@@ -18,6 +18,7 @@ public sealed class LinkPreviewService : ILinkPreviewService
     private readonly IOptions<LinkPreviewOptions> options;
     private readonly IMemoryCache cache;
     private readonly LinkPreviewUrlVerifier linkPreviewUrlVerifier;
+    private readonly LinkPreviewFallbackService linkPreviewFallbackService;
     private IEnumerable<ILinkPreviewPolyfill> polyfills;
 
     public LinkPreviewService(
@@ -25,6 +26,7 @@ public sealed class LinkPreviewService : ILinkPreviewService
         IOptions<LinkPreviewOptions> options,
         IMemoryCache cache,
         LinkPreviewUrlVerifier linkPreviewUrlVerifier,
+        LinkPreviewFallbackService linkPreviewFallbackService,
         IEnumerable<ILinkPreviewPolyfill> polyfills
     )
     {
@@ -32,7 +34,7 @@ public sealed class LinkPreviewService : ILinkPreviewService
         this.options = options;
         this.cache = cache;
         this.linkPreviewUrlVerifier = linkPreviewUrlVerifier;
-
+        this.linkPreviewFallbackService = linkPreviewFallbackService;
         try
         {
             this.options.Value.Validate();
@@ -162,12 +164,23 @@ public sealed class LinkPreviewService : ILinkPreviewService
                 )
             )
             {
-                throw new LinkPreviewException(
-                    System.Net.HttpStatusCode.InternalServerError,
-                    string.IsNullOrEmpty(linkPreviewResponse?.Description)
-                        ? "Failed to deserialize the API response."
-                        : linkPreviewResponse.Description
-                );
+                try
+                {
+                    linkPreviewResponse =
+                        await this.linkPreviewFallbackService.TryGetLinkPreviewAsFallback(
+                            url,
+                            cancellationToken
+                        );
+                }
+                catch { }
+
+                if (linkPreviewResponse == null)
+                {
+                    throw new LinkPreviewException(
+                        System.Net.HttpStatusCode.NotFound,
+                        "No preview available."
+                    );
+                }
             }
 
             return linkPreviewResponse;

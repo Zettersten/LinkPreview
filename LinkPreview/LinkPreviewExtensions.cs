@@ -87,6 +87,7 @@ namespace LinkPreview
             services.AddMemoryCache();
 
             services.AddHttpClient<LinkPreviewUrlVerifier>().AddStandardResilienceHandler();
+            services.AddHttpClient<LinkPreviewFallbackService>().AddStandardResilienceHandler();
 
             services
                 .AddHttpClient<ILinkPreviewService, LinkPreviewService>(
@@ -99,7 +100,13 @@ namespace LinkPreview
                         client.DefaultRequestHeaders.Add("X-Linkpreview-Api-Key", options.ApiKey);
                     }
                 )
-                .AddStandardResilienceHandler();
+                .AddStandardResilienceHandler(x =>
+                    x.TotalRequestTimeout =
+                        new Microsoft.Extensions.Http.Resilience.HttpTimeoutStrategyOptions
+                        {
+                            Timeout = TimeSpan.FromMinutes(2)
+                        }
+                );
 
             services.AddTransient<ILinkPreviewService, LinkPreviewService>();
 
@@ -123,11 +130,10 @@ namespace LinkPreview
                 )
                 .ToList();
 
-            foreach (var impl in polyfillImplementations)
+            foreach (var implementation in polyfillImplementations)
             {
-                services.AddSingleton(typeof(ILinkPreviewPolyfill), impl);
+                services.AddSingleton(typeof(ILinkPreviewPolyfill), implementation);
             }
-            // Add more polyfills here as needed
 
             return services;
         }
