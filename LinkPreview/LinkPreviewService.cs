@@ -14,12 +14,13 @@ namespace LinkPreview;
 /// </summary>
 public sealed class LinkPreviewService : ILinkPreviewService
 {
+    private const int maxRetries = 5;
     private readonly HttpClient httpClient;
     private readonly IOptions<LinkPreviewOptions> options;
     private readonly IMemoryCache cache;
     private readonly LinkPreviewUrlVerifier linkPreviewUrlVerifier;
     private readonly LinkPreviewFallbackService linkPreviewFallbackService;
-    private IEnumerable<ILinkPreviewPolyfill> polyfills;
+    private readonly IEnumerable<ILinkPreviewPolyfill> polyfills;
 
     public LinkPreviewService(
         HttpClient httpClient,
@@ -69,7 +70,49 @@ public sealed class LinkPreviewService : ILinkPreviewService
             return cachedResponse!;
         }
 
-        var response = await this.FetchLinkPreviewAsync(url, optionalFields, cancellationToken);
+        int currentRetryCount = 0;
+        LinkPreviewResponse? response = null;
+
+        while (currentRetryCount < maxRetries)
+        {
+            try
+            {
+                response = await this.FetchLinkPreviewAsync(url, optionalFields, cancellationToken);
+
+                if (response != null)
+                {
+                    break; // Exit loop if we successfully fetched the preview
+                }
+            }
+            catch
+            {
+                currentRetryCount++;
+
+                if (currentRetryCount >= maxRetries)
+                {
+                    throw;
+                }
+
+                // Wait before retrying
+                await Task.Delay(TimeSpan.FromSeconds(1 * currentRetryCount), cancellationToken);
+            }
+
+            if (response != null)
+            {
+                break; // Exit loop if we successfully fetched the preview
+            }
+
+            // If we reach here, it means we need to retry
+            currentRetryCount++;
+        }
+
+        if (response == null)
+        {
+            throw new LinkPreviewException(
+                System.Net.HttpStatusCode.NotFound,
+                $"No preview available for {url}."
+            );
+        }
 
         var cacheEntryOptions = new MemoryCacheEntryOptions
         {
@@ -100,11 +143,13 @@ public sealed class LinkPreviewService : ILinkPreviewService
         {
             var eagerResult = await polyfill.TryGetLinkPreviewAsync(url, cancellationToken);
 
-            if (eagerResult != null)
+            if (eagerResult is null)
             {
-                eagerResult.IsPolyfill = true;
-                return eagerResult;
+                continue;
             }
+
+            eagerResult.IsPolyfill = true;
+            return eagerResult;
         }
 
         // 2. Main API

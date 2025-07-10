@@ -1,0 +1,87 @@
+using System.Net;
+using LinkPreview.Polyfills.Squidlr.Abstractions;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Polly;
+using Polly.Extensions.Http;
+
+namespace LinkPreview.Polyfills.Squidlr.Instagram;
+
+public static class InstagramServiceCollectionExtensions
+{
+    public static IServiceCollection AddInstagram(this IServiceCollection services)
+    {
+        services
+            .AddHttpClient(
+                InstagramWebClient.HttpClientName,
+                (sp, client) =>
+                {
+                    var options = sp.GetRequiredService<IOptions<SquidlrOptions>>().Value;
+
+                    client.DefaultRequestHeaders.Add("accept", "*/*");
+                    client.DefaultRequestHeaders.Add("accept-language", "en-US,en;q=0.9");
+                    client.DefaultRequestHeaders.Add(
+                        "sec-ch-ua",
+                        "Chromium\";v=\"136\", \"Google Chrome\";v=\"136\", \"Not:A-Brand\";v=\"99\""
+                    );
+                    client.DefaultRequestHeaders.Add("sec-fetch-dest", "empty");
+                    client.DefaultRequestHeaders.Add("sec-fetch-mode", "cors");
+                    client.DefaultRequestHeaders.Add("sec-fetch-site", "same-origin");
+                    client.DefaultRequestHeaders.Add("Origin", "https://www.instagram.com");
+                    client.DefaultRequestHeaders.Add(
+                        "user-agent",
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36"
+                    );
+                    client.DefaultRequestHeaders.Add("X-Ig-App-Id", "936619743392459");
+                    client.DefaultRequestHeaders.Add("X-ASBD-ID", "198387");
+                    client.DefaultRequestHeaders.Add("X-IG-WWW-Claim", "0");
+                    client.DefaultRequestHeaders.Add("X-Requested-With", "XMLHttpRequest");
+
+                    client.BaseAddress = options.InstagramHostUri;
+                    client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrLower;
+                    client.DefaultRequestVersion = HttpVersion.Version20;
+                }
+            )
+            .ConfigurePrimaryHttpMessageHandler(
+                (sp) =>
+                {
+                    var options = sp.GetRequiredService<IOptions<SquidlrOptions>>().Value;
+                    var handler = new SocketsHttpHandler
+                    {
+                        PooledConnectionLifetime = TimeSpan.FromMinutes(10),
+                        UseProxy = false,
+                        UseCookies = false
+                    };
+
+                    return handler;
+                }
+            )
+            .AddPolicyHandler(
+                (services, request) =>
+                    HttpPolicyExtensions
+                        .HandleTransientHttpError()
+                        .OrResult(response => response.StatusCode == HttpStatusCode.Unauthorized)
+                        .WaitAndRetryAsync(
+                            retryCount: 6,
+                            sleepDurationProvider: _ => TimeSpan.FromMilliseconds(50),
+                            onRetry: (outcome, timespan, retryAttempt, context) =>
+                            {
+                                services
+                                    .GetService<ILogger<InstagramWebClient>>()
+                                    ?.LogWarning(
+                                        "Delaying for {delay}ms, then making retry {retry}.",
+                                        timespan.TotalMilliseconds,
+                                        retryAttempt
+                                    );
+                            }
+                        )
+            );
+
+        services.AddSingleton<InstagramWebClient>();
+        services.AddSingleton<IUrlResolver, InstagramUrlResolver>();
+        services.AddSingleton<IContentProvider, InstagramContentProvider>();
+
+        return services;
+    }
+}

@@ -1,0 +1,46 @@
+namespace LinkPreview.Polyfills.Squidlr.Twitter;
+
+public struct TweetIdentifier : IEquatable<TweetIdentifier>
+{
+    public TweetIdentifier(string id, string url)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(id);
+        ArgumentException.ThrowIfNullOrEmpty(url);
+        this.Id = id;
+        this.Url = url;
+    }
+
+    public string Id { get; set; }
+
+    public string Url { get; set; }
+
+    public override bool Equals(object? obj)
+    {
+        return obj is TweetIdentifier identifier && this.Equals(identifier);
+    }
+
+    public bool Equals(TweetIdentifier other)
+    {
+        return this.Id == other.Id;
+    }
+
+    public override int GetHashCode()
+    {
+        return HashCode.Combine(this.Id);
+    }
+
+    public static bool operator ==(TweetIdentifier left, TweetIdentifier right)
+    {
+        return left.Equals(right);
+    }
+
+    public static bool operator !=(TweetIdentifier left, TweetIdentifier right)
+    {
+        return !(left == right);
+    }
+
+    public override string? ToString()
+    {
+        return this.Id ?? base.ToString();
+    }
+}

@@ -41,7 +41,10 @@ public sealed class LinkPreviewUrlVerifier(HttpClient httpClient, IMemoryCache c
 
             try
             {
-                using var request = new HttpRequestMessage(HttpMethod.Get, url);
+                var urlPlusTs =
+                    $"{url}{(url.Contains('?') ? '&' : '?')}ts={DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}";
+
+                using var request = new HttpRequestMessage(HttpMethod.Get, urlPlusTs);
                 request.Headers.UserAgent.ParseAdd(currentUserAgent);
 
                 using var response = await httpClient.SendAsync(
@@ -88,6 +91,25 @@ public sealed class LinkPreviewUrlVerifier(HttpClient httpClient, IMemoryCache c
 
                 if ((int)response.StatusCode >= 400)
                 {
+                    var responseContent = await response.Content.ReadAsStringAsync(
+                        cancellationToken
+                    );
+
+                    if (
+                        responseContent.Contains(
+                            "This browser is no longer supported",
+                            StringComparison.OrdinalIgnoreCase
+                        )
+                        || responseContent.Contains(
+                            "Looks like this page doesn’t exist",
+                            StringComparison.OrdinalIgnoreCase
+                        )
+                    )
+                    {
+                        currentRetryCount++;
+                        continue;
+                    }
+
                     throw new LinkPreviewException(
                         response.StatusCode,
                         $"URL returned error status: {(int)response.StatusCode} ({response.StatusCode})"

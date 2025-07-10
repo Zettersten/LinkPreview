@@ -1,6 +1,15 @@
 using LinkPreview.Polyfills;
+using LinkPreview.Polyfills.Squidlr;
+using LinkPreview.Polyfills.Squidlr.Abstractions;
+using LinkPreview.Polyfills.Squidlr.Facebook;
+using LinkPreview.Polyfills.Squidlr.Instagram;
+using LinkPreview.Polyfills.Squidlr.LinkedIn;
+using LinkPreview.Polyfills.Squidlr.Tiktok;
+using LinkPreview.Polyfills.Squidlr.Twitter;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace LinkPreview
@@ -134,6 +143,37 @@ namespace LinkPreview
             {
                 services.AddSingleton(typeof(ILinkPreviewPolyfill), implementation);
             }
+
+            services
+                .AddOptions<SquidlrOptions>()
+                .Configure(options =>
+                {
+                    options.FacebookHostUri = new Uri("https://www.facebook.com");
+                    options.InstagramHostUri = new Uri("https://www.instagram.com");
+                    options.LinkedInHostUri = new Uri("https://www.linkedin.com");
+                    options.TiktokHostUri = new Uri("https://www.tiktok.com");
+                    options.TwitterAuthorizationBearerToken =
+                        "AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA";
+                    options.TwitterApiHostUri = new Uri("https://api.twitter.com");
+                });
+
+            services.AddMemoryCache();
+
+            services.AddSingleton(sp => new UrlResolver(
+                sp.GetServices<IUrlResolver>().ToList().AsReadOnly()
+            ));
+            services.AddSingleton(sp => new ContentProvider(
+                sp.GetServices<IContentProvider>().ToList().AsReadOnly(),
+                sp.GetRequiredService<IMemoryCache>(),
+                sp.GetRequiredService<ILogger<ContentProvider>>()
+            ));
+
+            // add supported social media platforms
+            services.AddFacebook();
+            services.AddInstagram();
+            services.AddLinkedIn();
+            services.AddTiktok();
+            services.AddTwitter();
 
             return services;
         }
