@@ -18,15 +18,15 @@ public sealed partial class TiktokContentProvider : IContentProvider
     )]
     private static partial Regex UniversalDataRegex();
 
-    private readonly TiktokWebClient _client;
-    private readonly ILogger<TiktokContentProvider> _logger;
+    private readonly TiktokWebClient client;
+    private readonly ILogger<TiktokContentProvider> logger;
 
     public SocialMediaPlatform Platform { get; } = SocialMediaPlatform.Tiktok;
 
     public TiktokContentProvider(TiktokWebClient client, ILogger<TiktokContentProvider> logger)
     {
-        this._client = client ?? throw new ArgumentNullException(nameof(client));
-        this._logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        this.client = client ?? throw new ArgumentNullException(nameof(client));
+        this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     public async ValueTask<Result<Content, RequestContentResult>> GetContentAsync(
@@ -35,11 +35,11 @@ public sealed partial class TiktokContentProvider : IContentProvider
     )
     {
         var identifier = UrlUtilities.GetTiktokIdentifier(url);
-        using var response = await this._client.GetTiktokPostAsync(identifier, cancellationToken);
+        using var response = await this.client.GetTiktokPostAsync(identifier, cancellationToken);
 
         if (!response.IsSuccessStatusCode)
         {
-            this._logger.LogWarning(
+            this.logger.LogWarning(
                 "Received {TiktokHttpStatusCode} HTTP status code when trying to request Tiktok post.",
                 response.StatusCode
             );
@@ -54,7 +54,7 @@ public sealed partial class TiktokContentProvider : IContentProvider
         var match = UniversalDataRegex().Match(html);
         if (!match.Success)
         {
-            this._logger.LogError("Could not find universal data script part in HTML document.");
+            this.logger.LogError("Could not find universal data script part in HTML document.");
             return new(RequestContentResult.Error);
         }
 
@@ -66,7 +66,7 @@ public sealed partial class TiktokContentProvider : IContentProvider
             ?.GetPropertyOrNull("webapp.video-detail");
         if (videoDetail == null)
         {
-            this._logger.LogWarning("Could not find 'webapp.video-detail' in JSON payload.");
+            this.logger.LogWarning("Could not find 'webapp.video-detail' in JSON payload.");
             return new(RequestContentResult.NoVideo);
         }
 
@@ -85,7 +85,7 @@ public sealed partial class TiktokContentProvider : IContentProvider
         var id = itemStruct.GetProperty("id").GetString();
         if (id == null || !id.Equals(identifier.Id, StringComparison.OrdinalIgnoreCase))
         {
-            this._logger.LogWarning("ID does not match requested Tiktok identifier.");
+            this.logger.LogWarning("ID does not match requested Tiktok identifier.");
         }
 
         if (itemStruct.GetPropertyOrNull("isContentClassified")?.GetBoolean() == true)
@@ -95,7 +95,7 @@ public sealed partial class TiktokContentProvider : IContentProvider
 
         if (itemStruct.GetPropertyOrNull("imagePost") != null)
         {
-            this._logger.LogWarning("Tiktok image posts are not supported yet.");
+            this.logger.LogWarning("Tiktok image posts are not supported yet.");
             return new(RequestContentResult.NoVideo);
         }
 

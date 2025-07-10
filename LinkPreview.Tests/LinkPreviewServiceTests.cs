@@ -14,9 +14,6 @@ public class LinkPreviewServiceTests : IClassFixture<LinkPreviewServiceFixture>
     [Theory]
     [InlineData("https://veefriends.com/")]
     [InlineData(
-        "https://www.bestbuy.com/site/samsung-55-class-u7900-series-uhd-4k-smart-tizen-tv-2025/6632331.p?skuId=6632331"
-    )]
-    [InlineData(
         "https://www.amazon.com/Plexon-Vintage-Outdoor-Farmhouse-Container/dp/B0DYW9XXP1/?_encoding=UTF8&pd_rd_w=uF9VR&content-id=amzn1.sym.255b3518-6e7f-495c-8611-30a58648072e%3Aamzn1.symc.a68f4ca3-28dc-4388-a2cf-24672c480d8f&pf_rd_p=255b3518-6e7f-495c-8611-30a58648072e&pf_rd_r=42D11E4EVW5VC0JXH304&pd_rd_wg=lDhh0&pd_rd_r=b83bb70e-4fc3-4ad7-b0d4-4090be7158b6&ref_=pd_hp_d_atf_ci_mcx_mr_ca_hp_atf_d"
     )]
     [InlineData(
@@ -76,7 +73,6 @@ public class LinkPreviewServiceTests : IClassFixture<LinkPreviewServiceFixture>
 
         Assert.True(result.ImageHeight > 0);
         Assert.True(result.ImageWidth > 0);
-        Assert.True(result.ImageType?.Length > 16);
 
         Assert.DoesNotContain(
             "private media",

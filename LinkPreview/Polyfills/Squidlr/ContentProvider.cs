@@ -7,12 +7,12 @@ namespace LinkPreview.Polyfills.Squidlr;
 
 public sealed class ContentProvider
 {
-    private readonly IReadOnlyList<IContentProvider> _contentProviders;
+    private readonly IReadOnlyList<IContentProvider> contentProviders;
 
-    private readonly IMemoryCache _memoryCache;
-    private readonly ILogger<ContentProvider> _logger;
+    private readonly IMemoryCache memoryCache;
+    private readonly ILogger<ContentProvider> logger;
 
-    private static readonly Result<Content, RequestContentResult> _platformNotSupportedResult =
+    private static readonly Result<Content, RequestContentResult> platformNotSupportedResult =
         new(RequestContentResult.PlatformNotSupported);
 
     public ContentProvider(
@@ -32,9 +32,9 @@ public sealed class ContentProvider
             );
         }
 
-        this._contentProviders = contentProviders;
-        this._memoryCache = memoryCache;
-        this._logger = logger;
+        this.contentProviders = contentProviders;
+        this.memoryCache = memoryCache;
+        this.logger = logger;
     }
 
     public async ValueTask<Result<Content, RequestContentResult>> GetContentAsync(
@@ -45,7 +45,7 @@ public sealed class ContentProvider
         var cacheKey = $"{contentIdentifier.Platform}-{contentIdentifier.Id}";
 
         if (
-            this._memoryCache.TryGetValue<Result<Content, RequestContentResult>>(
+            this.memoryCache.TryGetValue<Result<Content, RequestContentResult>>(
                 cacheKey,
                 out var result
             )
@@ -54,14 +54,14 @@ public sealed class ContentProvider
             return result;
         }
 
-        for (var i = 0; i < this._contentProviders.Count; i++)
+        for (var i = 0; i < this.contentProviders.Count; i++)
         {
-            var provider = this._contentProviders[i];
+            var provider = this.contentProviders[i];
             if (provider.Platform == contentIdentifier.Platform)
             {
                 try
                 {
-                    this._logger.LogInformation(
+                    this.logger.LogInformation(
                         "Loading content from {SocialMediaPlatform}: {ContentId} at {ContentUrl}",
                         contentIdentifier.Platform,
                         contentIdentifier.Id,
@@ -74,7 +74,7 @@ public sealed class ContentProvider
                     );
                     if (content.Error == RequestContentResult.Success)
                     {
-                        this._memoryCache.Set(
+                        this.memoryCache.Set(
                             cacheKey,
                             content,
                             absoluteExpirationRelativeToNow: TimeSpan.FromMinutes(60)
@@ -84,7 +84,7 @@ public sealed class ContentProvider
                     {
                         if (ShouldBeCached(content.Error))
                         {
-                            this._memoryCache.Set(
+                            this.memoryCache.Set(
                                 cacheKey,
                                 content,
                                 absoluteExpirationRelativeToNow: TimeSpan.FromMinutes(60)
@@ -100,7 +100,7 @@ public sealed class ContentProvider
                 }
                 catch (Exception e)
                 {
-                    this._logger.LogError(
+                    this.logger.LogError(
                         e,
                         "An unexpected error occurred while using the {SocialMediaPlatform} content provider.",
                         provider.Platform
@@ -111,7 +111,7 @@ public sealed class ContentProvider
             }
         }
 
-        return _platformNotSupportedResult;
+        return platformNotSupportedResult;
     }
 
     private static bool ShouldBeCached(RequestContentResult error)

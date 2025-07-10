@@ -29,6 +29,8 @@ public partial class InstagramLinkPreviewService : PolyfillBase, ILinkPreviewPol
         this.imageUtils = new ImageSizeReaderUtil();
     }
 
+    public int Order => 1;
+
     public bool IsEager => true;
 
     private static bool IsValidInstagramUrl(string url)
@@ -222,6 +224,7 @@ public partial class InstagramLinkPreviewService : PolyfillBase, ILinkPreviewPol
 
             var (ImageHeight, ImageWidth, ImageBytes) = await this.DownloadAndExtractImageAsync(
                 linkPreviewResponse.Image,
+                this.httpClient,
                 this.imageUtils,
                 CreateInstagramImageRequestMessage,
                 cancellationToken
@@ -230,6 +233,10 @@ public partial class InstagramLinkPreviewService : PolyfillBase, ILinkPreviewPol
             linkPreviewResponse.ImageHeight = ImageHeight;
             linkPreviewResponse.ImageWidth = ImageWidth;
             linkPreviewResponse.ImageType = Convert.ToBase64String(ImageBytes);
+            linkPreviewResponse.Icon =
+                "https://www.instagram.com/static/images/ico/apple-touch-icon-180x180-precomposed.png/c06fdb2357bd.png";
+            linkPreviewResponse.IconHeight = 180;
+            linkPreviewResponse.IconWidth = 180;
 
             return linkPreviewResponse;
         }

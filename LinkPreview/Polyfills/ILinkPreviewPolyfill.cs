@@ -13,6 +13,11 @@ public interface ILinkPreviewPolyfill
     bool IsEager { get; }
 
     /// <summary>
+    /// The order in which this polyfill should be executed.
+    /// </summary>
+    int Order { get; }
+
+    /// <summary>
     /// Attempts to fetch a link preview for the given URL.
     /// Returns null if not handled or not applicable.
     /// </summary>

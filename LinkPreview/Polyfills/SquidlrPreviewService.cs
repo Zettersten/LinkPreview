@@ -17,6 +17,8 @@ public sealed class SquidlrPreviewService : PolyfillBase, ILinkPreviewPolyfill
 
     public bool IsEager => true;
 
+    public int Order => 0;
+
     public bool CanHandle(string url)
     {
         var resolver = this.urlResolver.ResolveUrl(url);
@@ -37,36 +39,48 @@ public sealed class SquidlrPreviewService : PolyfillBase, ILinkPreviewPolyfill
         CancellationToken cancellationToken
     )
     {
-        var identifier = this.urlResolver.ResolveUrl(url);
-
-        if (identifier.Platform == SocialMediaPlatform.Unknown)
+        try
         {
-            return null;
-        }
+            var identifier = this.urlResolver.ResolveUrl(url);
 
-        var result = await this.contentProvider.GetContentAsync(identifier, cancellationToken);
-
-        if (!result.IsSuccessful)
-        {
-            return null;
-        }
-
-        if (result.Value is TwitterContent twitterContent)
-        {
-            return new LinkPreviewResponse
+            if (identifier.Platform == SocialMediaPlatform.Unknown)
             {
-                Title = twitterContent.FullText ?? string.Empty,
-                Description = twitterContent.FullText ?? string.Empty,
-                Url = twitterContent.SourceUrl
-            };
-        }
+                return null;
+            }
 
-        if (result.Value is InstagramContent igContent)
+            var result = await this.contentProvider.GetContentAsync(identifier, cancellationToken);
+
+            if (!result.IsSuccessful)
+            {
+                return null;
+            }
+
+            if (result.Value is TwitterContent twitterContent)
+            {
+                return ConvertToLinkPreview(twitterContent);
+            }
+
+            if (result.Value is InstagramContent igContent)
+            {
+                return ConvertToLinkPreview(igContent);
+            }
+
+            return null;
+        }
+        catch
         {
-            return ConvertToLinkPreview(igContent);
+            return null;
         }
+    }
 
-        return null;
+    private static LinkPreviewResponse? ConvertToLinkPreview(TwitterContent twitterContent)
+    {
+        return new LinkPreviewResponse
+        {
+            Title = twitterContent.FullText ?? string.Empty,
+            Description = twitterContent.FullText ?? string.Empty,
+            Url = twitterContent.SourceUrl
+        };
     }
 
     private static LinkPreviewResponse? ConvertToLinkPreview(InstagramContent igContent)

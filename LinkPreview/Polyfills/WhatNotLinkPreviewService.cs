@@ -19,6 +19,8 @@ public partial class WhatNotLinkPreviewService : PolyfillBase, ILinkPreviewPolyf
 
     public bool IsEager => true;
 
+    public int Order => 0;
+
     private static bool IsValidLink(string url)
     {
         if (string.IsNullOrEmpty(url))
@@ -169,6 +171,7 @@ public partial class WhatNotLinkPreviewService : PolyfillBase, ILinkPreviewPolyf
 
             var (ImageHeight, ImageWidth, ImageBytes) = await this.DownloadAndExtractImageAsync(
                 linkPreviewResponse.Image,
+                this.httpClient,
                 this.imageUtils,
                 CreateWhatNotHtmlRequestMessage,
                 cancellationToken

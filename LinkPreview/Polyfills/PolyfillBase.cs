@@ -7,8 +7,10 @@ namespace LinkPreview.Polyfills;
 /// </summary>
 public abstract partial class PolyfillBase
 {
+    private readonly object lockObject = new();
     private string? lastUsedUserAgent;
     private int currentUsageCount;
+
     private readonly Queue<string> userAgentQueue = RegexUtilities.CreateUserAgentQueue(
         botAgentsOnly: false
     );
@@ -18,24 +20,27 @@ public abstract partial class PolyfillBase
     /// </summary>
     protected string GetNextUserAgent()
     {
-        // Not thread-safe, but fine for most use-cases. Use lock if needed for concurrency.
-        if (string.IsNullOrEmpty(this.lastUsedUserAgent))
+        lock (this.lockObject)
         {
+            if (string.IsNullOrEmpty(this.lastUsedUserAgent))
+            {
+                this.lastUsedUserAgent = this.userAgentQueue.Dequeue();
+                this.userAgentQueue.Enqueue(this.lastUsedUserAgent);
+                this.currentUsageCount = 1;
+                return this.lastUsedUserAgent;
+            }
+
+            if (this.currentUsageCount++ < 5)
+            {
+                return this.lastUsedUserAgent;
+            }
+
+            this.currentUsageCount = 1;
             this.lastUsedUserAgent = this.userAgentQueue.Dequeue();
             this.userAgentQueue.Enqueue(this.lastUsedUserAgent);
-            this.currentUsageCount = 1;
+
             return this.lastUsedUserAgent;
         }
-
-        if (this.currentUsageCount++ < 5)
-        {
-            return this.lastUsedUserAgent;
-        }
-
-        this.currentUsageCount = 1;
-        this.lastUsedUserAgent = this.userAgentQueue.Dequeue();
-        this.userAgentQueue.Enqueue(this.lastUsedUserAgent);
-        return this.lastUsedUserAgent;
     }
 
     protected async Task<HttpResponseMessage> SendWithRedirectAsync(
@@ -82,6 +87,7 @@ public abstract partial class PolyfillBase
 
     protected async Task<(int Height, int Width, byte[] Bytes)> DownloadAndExtractImageAsync(
         string imageUrl,
+        HttpClient httpClient,
         ImageSizeReaderUtil imageUtils,
         Func<string, string, HttpRequestMessage> createRequest,
         CancellationToken cancellationToken
@@ -90,7 +96,7 @@ public abstract partial class PolyfillBase
         var userAgent = this.GetNextUserAgent();
         var imageRequest = createRequest(imageUrl, userAgent);
 
-        using var response = await new HttpClient().SendAsync(imageRequest, cancellationToken);
+        using var response = await httpClient.SendAsync(imageRequest, cancellationToken);
 
         if (!response.IsSuccessStatusCode)
         {

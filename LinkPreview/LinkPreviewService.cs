@@ -139,7 +139,11 @@ public sealed class LinkPreviewService : ILinkPreviewService
     )
     {
         // 1. Eager polyfills
-        foreach (var polyfill in this.polyfills.Where(p => p.IsEager && p.CanHandle(url)))
+        foreach (
+            var polyfill in this
+                .polyfills.Where(p => p.IsEager && p.CanHandle(url))
+                .OrderBy(x => x.Order)
+        )
         {
             var eagerResult = await polyfill.TryGetLinkPreviewAsync(url, cancellationToken);
 
@@ -228,6 +232,23 @@ public sealed class LinkPreviewService : ILinkPreviewService
                 }
             }
 
+            if (
+                linkPreviewResponse.Title.Contains(
+                    "private media",
+                    StringComparison.OrdinalIgnoreCase
+                )
+                || linkPreviewResponse.Description.Contains(
+                    "private media",
+                    StringComparison.OrdinalIgnoreCase
+                )
+            )
+            {
+                throw new LinkPreviewException(
+                    System.Net.HttpStatusCode.NotFound,
+                    $"Private media detected for {url}."
+                );
+            }
+
             return linkPreviewResponse;
         }
         catch (Exception ex) when (ex is not LinkPreviewException)
@@ -242,15 +263,21 @@ public sealed class LinkPreviewService : ILinkPreviewService
         }
 
         // 3. Lazy polyfills (if main API failed)
-        foreach (var polyfill in this.polyfills.Where(p => !p.IsEager && p.CanHandle(url)))
+        foreach (
+            var polyfill in this
+                .polyfills.Where(p => !p.IsEager && p.CanHandle(url))
+                .OrderBy(x => x.Order)
+        )
         {
             var lazyResult = await polyfill.TryGetLinkPreviewAsync(url, cancellationToken);
 
-            if (lazyResult != null)
+            if (lazyResult == null)
             {
-                lazyResult.IsPolyfill = true;
-                return lazyResult;
+                continue;
             }
+
+            lazyResult.IsPolyfill = true;
+            return lazyResult;
         }
 
         // 4. If all else fails, throw the main API exception or a generic one

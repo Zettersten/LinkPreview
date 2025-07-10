@@ -157,15 +157,17 @@ namespace LinkPreview
                     options.TwitterApiHostUri = new Uri("https://api.twitter.com");
                 });
 
+            services.AddSingleton<Polyfills.Playwright.ContentProvider>();
+
             services.AddMemoryCache();
 
             services.AddSingleton(sp => new UrlResolver(
                 sp.GetServices<IUrlResolver>().ToList().AsReadOnly()
             ));
-            services.AddSingleton(sp => new ContentProvider(
+            services.AddSingleton(sp => new Polyfills.Squidlr.ContentProvider(
                 sp.GetServices<IContentProvider>().ToList().AsReadOnly(),
                 sp.GetRequiredService<IMemoryCache>(),
-                sp.GetRequiredService<ILogger<ContentProvider>>()
+                sp.GetRequiredService<ILogger<Polyfills.Squidlr.ContentProvider>>()
             ));
 
             // add supported social media platforms

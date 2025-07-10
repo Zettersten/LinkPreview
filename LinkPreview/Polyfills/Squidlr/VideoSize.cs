@@ -1,18 +1,12 @@
 namespace LinkPreview.Polyfills.Squidlr;
 
-public readonly struct VideoSize : IEquatable<VideoSize>
+public readonly struct VideoSize(int height, int width) : IEquatable<VideoSize>
 {
-    public readonly int Height { get; init; }
+    public readonly int Height { get; init; } = height;
 
-    public readonly int Width { get; init; }
+    public readonly int Width { get; init; } = width;
 
     public static VideoSize Empty => new() { Height = 0, Width = 0 };
-
-    public VideoSize(int height, int width)
-    {
-        this.Height = height;
-        this.Width = width;
-    }
 
     public override bool Equals(object? obj)
     {

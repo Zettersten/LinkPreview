@@ -4,7 +4,7 @@ namespace LinkPreview.Polyfills.Squidlr;
 
 public sealed class UrlResolver
 {
-    private readonly IReadOnlyList<IUrlResolver> _urlResolvers;
+    private readonly IReadOnlyList<IUrlResolver> urlResolvers;
 
     public UrlResolver(IReadOnlyList<IUrlResolver> urlResolvers)
     {
@@ -17,7 +17,7 @@ public sealed class UrlResolver
             );
         }
 
-        this._urlResolvers = urlResolvers;
+        this.urlResolvers = urlResolvers;
     }
 
     public ContentIdentifier ResolveUrl(string? url)
@@ -25,9 +25,9 @@ public sealed class UrlResolver
         if (string.IsNullOrWhiteSpace(url))
             return ContentIdentifier.Unknown;
 
-        for (var i = 0; i < this._urlResolvers.Count; i++)
+        for (var i = 0; i < this.urlResolvers.Count; i++)
         {
-            var contentIdentifier = this._urlResolvers[i].ResolveUrl(url);
+            var contentIdentifier = this.urlResolvers[i].ResolveUrl(url);
             if (contentIdentifier != ContentIdentifier.Unknown)
                 return contentIdentifier;
         }
