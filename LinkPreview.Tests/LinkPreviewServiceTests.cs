@@ -283,4 +283,35 @@ public class LinkPreviewServiceTests : IClassFixture<LinkPreviewServiceFixture>
             StringComparison.CurrentCultureIgnoreCase
         );
     }
+
+    [Theory]
+    [InlineData("https://x.com/djsmeadows/status/1870129791078367436")]
+    public async Task GetLinkPreviewForKnownVideos_ReturnsResult(string url)
+    {
+        // Act
+        var result = await this.service.GetLinkPreviewAsync(
+            url,
+            LinkPreviewOptionalField.ImageX | LinkPreviewOptionalField.ImageY
+        );
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.False(string.IsNullOrEmpty(result.Title));
+        Assert.False(string.IsNullOrEmpty(result.Image));
+
+        Assert.True(result.ImageHeight > 0);
+        Assert.True(result.ImageWidth > 0);
+
+        Assert.DoesNotContain(
+            "private media",
+            result.Title,
+            StringComparison.CurrentCultureIgnoreCase
+        );
+
+        Assert.DoesNotContain(
+            "private media",
+            result.Description,
+            StringComparison.CurrentCultureIgnoreCase
+        );
+    }
 }

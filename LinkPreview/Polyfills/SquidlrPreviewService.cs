@@ -7,9 +7,9 @@ namespace LinkPreview.Polyfills;
 public sealed class SquidlrPreviewService : PolyfillBase, ILinkPreviewPolyfill
 {
     private readonly UrlResolver urlResolver;
-    private readonly ContentProvider contentProvider;
+    private readonly Squidlr.ContentProvider contentProvider;
 
-    public SquidlrPreviewService(UrlResolver urlResolver, ContentProvider contentProvider)
+    public SquidlrPreviewService(UrlResolver urlResolver, Squidlr.ContentProvider contentProvider)
     {
         this.urlResolver = urlResolver;
         this.contentProvider = contentProvider;
@@ -75,11 +75,46 @@ public sealed class SquidlrPreviewService : PolyfillBase, ILinkPreviewPolyfill
 
     private static LinkPreviewResponse? ConvertToLinkPreview(TwitterContent twitterContent)
     {
+        if (
+            !Uri.TryCreate(
+                twitterContent.Videos?.FirstOrDefault()?.DisplayUrl?.ToString() ?? string.Empty,
+                UriKind.Absolute,
+                out var imageUrl
+            )
+        )
+        {
+            return null;
+        }
+
+        var imageHeight = 0;
+        var imageWidth = 0;
+
+        if (
+            twitterContent.Videos?.FirstOrDefault()?.VideoSources?.FirstOrDefault()?.Size
+            is not null
+        )
+        {
+            var size = twitterContent.Videos.First().VideoSources.First();
+
+            imageHeight = size.Size.Height;
+            imageWidth = size.Size.Width;
+        }
+
+        var iconHref = "https://abs.twimg.com/responsive-web/client-web/icon-ios.77d25eba.png";
+        var iconWidth = 1024;
+        var iconHeight = 1024;
+
         return new LinkPreviewResponse
         {
             Title = twitterContent.FullText ?? string.Empty,
             Description = twitterContent.FullText ?? string.Empty,
-            Url = twitterContent.SourceUrl
+            Url = twitterContent.SourceUrl,
+            Image = imageUrl.ToString(),
+            ImageHeight = imageHeight,
+            ImageWidth = imageWidth,
+            Icon = iconHref,
+            IconHeight = iconHeight,
+            IconWidth = iconWidth,
         };
     }
 
