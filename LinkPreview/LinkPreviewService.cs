@@ -81,6 +81,12 @@ public sealed class LinkPreviewService : ILinkPreviewService
 
                 if (response != null)
                 {
+                    if (response.Title == "X. It’s what’s happening")
+                    {
+                        response = null;
+                        break;
+                    }
+
                     break; // Exit loop if we successfully fetched the preview
                 }
             }

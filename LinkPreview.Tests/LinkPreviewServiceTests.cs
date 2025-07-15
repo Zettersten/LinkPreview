@@ -285,8 +285,8 @@ public class LinkPreviewServiceTests : IClassFixture<LinkPreviewServiceFixture>
     }
 
     [Theory]
-    [InlineData("https://x.com/djsmeadows/status/1870129791078367436")]
-    [InlineData("https://www.instagram.com/p/DK04p9GMe-4/")]
+    [InlineData("https://x.com/cr_HENDERSON/status/1519866253590020096")]
+    [InlineData("https://x.com/Jacob_tyler_m/status/1746936832556667061")]
     public async Task GetLinkPreviewForKnownVideos_ReturnsResult(string url)
     {
         // Act
