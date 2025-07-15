@@ -4,24 +4,18 @@ using LinkPreview.Polyfills.Squidlr.Twitter;
 
 namespace LinkPreview.Polyfills;
 
-public sealed class SquidlrPreviewService : PolyfillBase, ILinkPreviewPolyfill
+public sealed class SquidlrPreviewService(
+    UrlResolver urlResolver,
+    Squidlr.ContentProvider contentProvider
+) : PolyfillBase, ILinkPreviewPolyfill
 {
-    private readonly UrlResolver urlResolver;
-    private readonly Squidlr.ContentProvider contentProvider;
-
-    public SquidlrPreviewService(UrlResolver urlResolver, Squidlr.ContentProvider contentProvider)
-    {
-        this.urlResolver = urlResolver;
-        this.contentProvider = contentProvider;
-    }
-
     public bool IsEager => true;
 
     public int Order => 0;
 
     public bool CanHandle(string url)
     {
-        var resolver = this.urlResolver.ResolveUrl(url);
+        var resolver = urlResolver.ResolveUrl(url);
 
         return resolver.Platform switch
         {
@@ -41,14 +35,14 @@ public sealed class SquidlrPreviewService : PolyfillBase, ILinkPreviewPolyfill
     {
         try
         {
-            var identifier = this.urlResolver.ResolveUrl(url);
+            var identifier = urlResolver.ResolveUrl(url);
 
             if (identifier.Platform == SocialMediaPlatform.Unknown)
             {
                 return null;
             }
 
-            var result = await this.contentProvider.GetContentAsync(identifier, cancellationToken);
+            var result = await contentProvider.GetContentAsync(identifier, cancellationToken);
 
             if (!result.IsSuccessful)
             {

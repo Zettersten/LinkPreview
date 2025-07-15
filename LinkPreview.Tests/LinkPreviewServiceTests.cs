@@ -286,7 +286,43 @@ public class LinkPreviewServiceTests : IClassFixture<LinkPreviewServiceFixture>
 
     [Theory]
     [InlineData("https://x.com/djsmeadows/status/1870129791078367436")]
+    [InlineData("https://www.instagram.com/p/DK04p9GMe-4/")]
     public async Task GetLinkPreviewForKnownVideos_ReturnsResult(string url)
+    {
+        // Act
+        var result = await this.service.GetLinkPreviewAsync(
+            url,
+            LinkPreviewOptionalField.ImageX | LinkPreviewOptionalField.ImageY
+        );
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.False(string.IsNullOrEmpty(result.Title));
+        Assert.False(string.IsNullOrEmpty(result.Image));
+
+        Assert.True(result.ImageHeight > 0);
+        Assert.True(result.ImageWidth > 0);
+
+        Assert.DoesNotContain(
+            "private media",
+            result.Title,
+            StringComparison.CurrentCultureIgnoreCase
+        );
+
+        Assert.DoesNotContain(
+            "private media",
+            result.Description,
+            StringComparison.CurrentCultureIgnoreCase
+        );
+    }
+
+    [Theory]
+    [InlineData("https://giphy.com/embed/TRaV5IQ2NvKYYXvq9Q")]
+    [InlineData("https://giphy.com/gifs/VeeFriends-sloth-veefriends-vee-friend-TRaV5IQ2NvKYYXvq9Q")]
+    [InlineData(
+        "https://media.giphy.com/media/v1.Y2lkPWVjZjA1ZTQ3OGVpbHlobm1pNW04OGpreHdra2FubDZyZ3h0aG5yOHRhd3JuZ3FieCZlcD12MV9naWZzX3NlYXJjaCZjdD1n/nnegoZlVjaG9dzW37l/giphy.gif"
+    )]
+    public async Task GetLinkPreviewForGiphy_ReturnsResult(string url)
     {
         // Act
         var result = await this.service.GetLinkPreviewAsync(

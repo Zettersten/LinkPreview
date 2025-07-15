@@ -4,10 +4,10 @@ namespace LinkPreview.Polyfills;
 
 public partial class InstagramLinkPreviewService : PolyfillBase, ILinkPreviewPolyfill
 {
-    private readonly ImageSizeReaderUtil imageUtils;
+    private readonly IImageSizeReaderUtil imageUtils;
     private readonly HttpClient httpClient;
 
-    public InstagramLinkPreviewService()
+    public InstagramLinkPreviewService(IImageSizeReaderUtil imageSizeReaderUtil)
     {
         this.httpClient = new HttpClient(
             new HttpClientHandler
@@ -26,7 +26,7 @@ public partial class InstagramLinkPreviewService : PolyfillBase, ILinkPreviewPol
             BaseAddress = new Uri("https://www.instagram.com/"),
         };
 
-        this.imageUtils = new ImageSizeReaderUtil();
+        this.imageUtils = imageSizeReaderUtil;
     }
 
     public int Order => 1;

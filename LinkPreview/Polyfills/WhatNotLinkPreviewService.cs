@@ -4,17 +4,17 @@ namespace LinkPreview.Polyfills;
 
 public partial class WhatNotLinkPreviewService : PolyfillBase, ILinkPreviewPolyfill
 {
-    private readonly ImageSizeReaderUtil imageUtils;
+    private readonly IImageSizeReaderUtil imageUtils;
     private readonly HttpClient httpClient;
 
-    public WhatNotLinkPreviewService()
+    public WhatNotLinkPreviewService(IImageSizeReaderUtil imageSizeReaderUtil)
     {
         this.httpClient = new HttpClient()
         {
             DefaultRequestVersion = new Version(2, 0) // Enforce HTTP/2
         };
 
-        this.imageUtils = new ImageSizeReaderUtil();
+        this.imageUtils = imageSizeReaderUtil;
     }
 
     public bool IsEager => true;

@@ -12,12 +12,13 @@ public class PlaywrightLinkPreviewService : PolyfillBase, ILinkPreviewPolyfill
     private readonly UrlResolver urlResolver;
     private readonly IMemoryCache memoryCache;
     private readonly HttpClient httpClient;
-    private readonly ImageSizeReaderUtil imageUtils;
+    private readonly IImageSizeReaderUtil imageUtils;
 
     public PlaywrightLinkPreviewService(
         Playwright.ContentProvider contentProvider,
         UrlResolver urlResolver,
-        IMemoryCache memoryCache
+        IMemoryCache memoryCache,
+        IImageSizeReaderUtil imageSizeReaderUtil
     )
     {
         this.contentProvider = contentProvider;
@@ -41,7 +42,7 @@ public class PlaywrightLinkPreviewService : PolyfillBase, ILinkPreviewPolyfill
             BaseAddress = new Uri("https://www.instagram.com/"),
         };
 
-        this.imageUtils = new ImageSizeReaderUtil();
+        this.imageUtils = imageSizeReaderUtil;
     }
 
     public bool IsEager => false;

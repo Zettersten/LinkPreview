@@ -1,3 +1,4 @@
+using ImageSizeReader;
 using LinkPreview.Polyfills;
 using LinkPreview.Polyfills.Squidlr;
 using LinkPreview.Polyfills.Squidlr.Abstractions;
@@ -161,6 +162,7 @@ namespace LinkPreview
 
             services.AddMemoryCache();
 
+            services.AddSingleton<IImageSizeReaderUtil, ImageSizeReaderUtil>();
             services.AddSingleton(sp => new UrlResolver(
                 sp.GetServices<IUrlResolver>().ToList().AsReadOnly()
             ));

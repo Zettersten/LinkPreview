@@ -88,7 +88,7 @@ public abstract partial class PolyfillBase
     protected async Task<(int Height, int Width, byte[] Bytes)> DownloadAndExtractImageAsync(
         string imageUrl,
         HttpClient httpClient,
-        ImageSizeReaderUtil imageUtils,
+        IImageSizeReaderUtil imageUtils,
         Func<string, string, HttpRequestMessage> createRequest,
         CancellationToken cancellationToken
     )
@@ -111,7 +111,10 @@ public abstract partial class PolyfillBase
 
         await imageContent.CopyToAsync(ms, cancellationToken);
 
-        imageContent.Seek(0, SeekOrigin.Begin);
+        if (imageContent.CanSeek)
+        {
+            imageContent.Seek(0, SeekOrigin.Begin);
+        }
 
         if (imageContent.Length == 0)
         {
@@ -123,10 +126,13 @@ public abstract partial class PolyfillBase
 
         var dimensions = imageUtils.GetDimensions(imageContent);
 
-        ms.Seek(0, SeekOrigin.Begin);
-
         if (dimensions != null)
         {
+            if (ms.CanSeek)
+            {
+                ms.Seek(0, SeekOrigin.Begin);
+            }
+
             return (dimensions.Height, dimensions.Width, ms.ToArray());
         }
 
